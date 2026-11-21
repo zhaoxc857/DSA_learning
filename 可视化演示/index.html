@@ -1,0 +1,4509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>《数据结构与算法》交互式可视化工作台</title>
+<style>
+:root {
+  --bg: #f3f6fb;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #0f172a;
+  --text-sub: #475569;
+  --text-muted: #64748b;
+
+  --blue: #2563eb;
+  --blue-bg: #eff6ff;
+  --blue-border: #93c5fd;
+
+  --amber: #d97706;
+  --amber-bg: #fffbeb;
+  --amber-border: #fcd34d;
+
+  --green: #059669;
+  --green-bg: #ecfdf5;
+  --green-border: #6ee7b7;
+
+  --red: #dc2626;
+  --red-bg: #fef2f2;
+  --red-border: #fca5a5;
+
+  --purple: #7c3aed;
+  --purple-bg: #f5f3ff;
+  --purple-border: #c4b5fd;
+
+  --code-bg: #0f172a;
+  --code-text: #e2e8f0;
+  --code-line-num: #64748b;
+  --code-active-bg: rgba(37, 99, 235, 0.30);
+  --code-active-border: #38bdf8;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 2px 10px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --font-sans: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Header & Navigation */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.04);
+}
+.header-inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 10px 20px 0 20px;
+}
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.brand-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+.brand-title h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.brand-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.shortcut-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  color: var(--text-sub);
+}
+
+.tab-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 0;
+  scrollbar-width: thin;
+}
+.tab-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-sub);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 9px 14px 10px 14px;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  border-radius: 8px 8px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tab-btn:hover {
+  color: var(--blue);
+  background: var(--blue-bg);
+}
+.tab-btn.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+  background: var(--blue-bg);
+}
+.tab-ch {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: #e2e8f0;
+  color: #475569;
+}
+.tab-btn.active .tab-ch {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* Main Container */
+.main-wrap {
+  max-width: 1440px;
+  margin: 16px auto 32px auto;
+  padding: 0 20px;
+}
+.module-pane {
+  display: none;
+}
+.module-pane.active {
+  display: block;
+}
+
+/* Control Toolbar Card */
+.toolbar-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.group-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.14s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  user-select: none;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-bg);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.btn.active:hover {
+  background: #1d4ed8;
+  color: #fff;
+}
+.btn-danger-pill.active {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.btn-danger-pill:hover:not(.active) {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-bg);
+}
+.btn-primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  color: #fff;
+}
+.btn-success {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.btn-success:hover:not(:disabled) {
+  background: #047857;
+  color: #fff;
+}
+.btn-amber {
+  background: #f59e0b;
+  border-color: #d97706;
+  color: #fff;
+}
+.btn-amber:hover:not(:disabled) {
+  background: #d97706;
+  color: #fff;
+}
+.btn-danger {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+  color: #fff;
+}
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 12.5px;
+}
+
+.input-num {
+  width: 78px;
+  padding: 6px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-soft);
+}
+.input-num:focus {
+  outline: none;
+  border-color: var(--blue);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+.select-box {
+  padding: 5px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-soft);
+}
+
+/* Playback Bar */
+.player-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.speed-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-sub);
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+}
+.speed-wrap input[type="range"] {
+  width: 88px;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+.step-counter {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--blue);
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-border);
+  padding: 4px 10px;
+  border-radius: 99px;
+  min-width: 104px;
+  text-align: center;
+}
+.progress-track {
+  flex: 1;
+  min-width: 140px;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 99px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  border-radius: 99px;
+  transition: width 0.16s ease;
+}
+
+/* Workspace 2-Column Grid */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.48fr) minmax(350px, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 1080px) {
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.col-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card-head {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.card-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.card-body {
+  padding: 14px;
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-sub);
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* SVG Stage */
+.svg-stage {
+  width: 100%;
+  background: linear-gradient(180deg, #fafcff 0%, #f8fafc 100%);
+  border: 1px solid #edf2f7;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.svg-stage svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Variable Chips Bar */
+.vars-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.var-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  font-size: 12.5px;
+}
+.var-chip .v-name {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-sub);
+}
+.var-chip .v-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text);
+}
+.var-chip.tone-blue { background: var(--blue-bg); border-color: var(--blue-border); }
+.var-chip.tone-blue .v-val { color: var(--blue); }
+.var-chip.tone-amber { background: var(--amber-bg); border-color: var(--amber-border); }
+.var-chip.tone-amber .v-val { color: var(--amber); }
+.var-chip.tone-green { background: var(--green-bg); border-color: var(--green-border); }
+.var-chip.tone-green .v-val { color: var(--green); }
+.var-chip.tone-red { background: var(--red-bg); border-color: var(--red-border); }
+.var-chip.tone-red .v-val { color: var(--red); }
+.var-chip.tone-purple { background: var(--purple-bg); border-color: var(--purple-border); }
+.var-chip.tone-purple .v-val { color: var(--purple); }
+
+/* Explanation Box */
+.explain-box {
+  border-radius: 10px;
+  padding: 12px 14px;
+  border-left: 4px solid var(--blue);
+  background: var(--blue-bg);
+  transition: background 0.15s, border-color 0.15s;
+}
+.explain-box.tone-warn {
+  border-left-color: var(--amber);
+  background: var(--amber-bg);
+}
+.explain-box.tone-good {
+  border-left-color: var(--green);
+  background: var(--green-bg);
+}
+.explain-box.tone-danger {
+  border-left-color: var(--red);
+  background: var(--red-bg);
+}
+.explain-main {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.6;
+}
+.explain-tip {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(15, 23, 42, 0.14);
+  font-size: 12.8px;
+  color: var(--text-sub);
+  line-height: 1.55;
+}
+.explain-tip strong {
+  color: var(--text);
+}
+
+/* C++ Code Viewer */
+.code-viewer {
+  background: var(--code-bg);
+  color: var(--code-text);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  padding: 10px 0;
+  overflow-x: auto;
+  max-height: 410px;
+  overflow-y: auto;
+}
+.code-line {
+  display: flex;
+  padding: 1px 14px 1px 0;
+  border-left: 3px solid transparent;
+  white-space: pre;
+  transition: background 0.12s;
+}
+.code-line.active {
+  background: var(--code-active-bg);
+  border-left-color: var(--code-active-border);
+  color: #ffffff;
+  font-weight: 600;
+}
+.code-line.active-danger {
+  background: rgba(220, 38, 38, 0.32);
+  border-left-color: #f87171;
+  color: #ffffff;
+  font-weight: 600;
+}
+.code-ln {
+  width: 36px;
+  flex-shrink: 0;
+  text-align: right;
+  padding-right: 12px;
+  color: var(--code-line-num);
+  user-select: none;
+}
+.code-line.active .code-ln,
+.code-line.active-danger .code-ln {
+  color: #93c5fd;
+}
+.code-txt {
+  flex: 1;
+}
+.ck-kw { color: #93c5fd; }
+.ck-cm { color: #64748b; font-style: italic; }
+.ck-ty { color: #5eead4; }
+.ck-num { color: #fcd34d; }
+
+/* Circular Queue Big Dashboard */
+.cq-dashboard {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.cq-stat {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 11px;
+  background: var(--surface-soft);
+}
+.cq-stat.full-span {
+  grid-column: 1 / -1;
+}
+.cq-stat-lbl {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.cq-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+.cq-stat.is-true-danger {
+  background: var(--red-bg);
+  border-color: var(--red-border);
+  color: var(--red);
+}
+.cq-stat.is-true-amber {
+  background: var(--amber-bg);
+  border-color: var(--amber-border);
+  color: var(--amber);
+}
+.cq-stat.is-true-green {
+  background: var(--green-bg);
+  border-color: var(--green-border);
+  color: var(--green);
+}
+
+/* Stack & Queue Aux Panels */
+.aux-stack {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 6px;
+  min-height: 128px;
+  padding: 10px;
+  border: 2px dashed var(--border-strong);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  background: #f8fafc;
+}
+.stack-frame {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: #fff;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.stack-frame.top {
+  border-color: var(--blue);
+  background: var(--blue-bg);
+  color: #1e40af;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.14);
+}
+.stack-badge {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: #e2e8f0;
+  color: #334155;
+}
+.stack-frame.top .stack-badge {
+  background: var(--blue);
+  color: #fff;
+}
+
+.aux-queue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.q-item {
+  min-width: 34px;
+  height: 32px;
+  padding: 0 9px;
+  border-radius: 7px;
+  background: var(--blue-bg);
+  border: 1.5px solid var(--blue);
+  color: var(--blue);
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.q-item.head {
+  background: var(--blue);
+  color: #fff;
+}
+.q-item.fresh {
+  background: var(--green-bg);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.seq-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 36px;
+}
+.seq-node {
+  min-width: 32px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: var(--green-bg);
+  border: 1.5px solid var(--green-border);
+  color: #065f46;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.seq-node.latest {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+/* Dijkstra Table */
+.dijk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+}
+.dijk-table th, .dijk-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+.dijk-table th {
+  background: var(--surface-soft);
+  color: var(--text-sub);
+  font-family: var(--font-sans);
+  font-weight: 700;
+}
+.dijk-table tr.row-current {
+  background: var(--blue-bg);
+  font-weight: 700;
+}
+.dijk-table tr.row-relaxed {
+  background: var(--amber-bg);
+  font-weight: 700;
+}
+.dijk-table tr.row-done td:first-child {
+  color: var(--green);
+  font-weight: 800;
+}
+.tag-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-family: var(--font-sans);
+  font-weight: 700;
+}
+.tag-green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.tag-slate { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+.tag-amber { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+.tag-blue { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
+
+/* Sorting Bar Chart */
+.sort-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bars-wrap {
+  height: 240px;
+  padding: 26px 14px 28px 14px;
+  background: linear-gradient(180deg, #fafcff 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 10px;
+  position: relative;
+}
+.bar-col {
+  flex: 1;
+  max-width: 58px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  position: relative;
+}
+.bar-ptr {
+  position: absolute;
+  top: -22px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.bar-ptr.p-blue { background: var(--blue); color: #fff; }
+.bar-ptr.p-purple { background: var(--purple); color: #fff; }
+.bar-ptr.p-amber { background: var(--amber); color: #fff; }
+.bar-ptr.p-red { background: var(--red); color: #fff; }
+
+.bar-rect {
+  width: 100%;
+  min-height: 22px;
+  border-radius: 7px 7px 3px 3px;
+  background: #64748b;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 5px;
+  transition: height 0.16s ease, background 0.14s ease, transform 0.14s ease;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.12);
+}
+.bar-rect.st-default { background: linear-gradient(180deg, #60a5fa, #3b82f6); }
+.bar-rect.st-compare { background: linear-gradient(180deg, #fbbf24, #d97706); transform: translateY(-3px); }
+.bar-rect.st-swap { background: linear-gradient(180deg, #f87171, #dc2626); transform: translateY(-5px); }
+.bar-rect.st-pivot { background: linear-gradient(180deg, #a78bfa, #7c3aed); transform: translateY(-4px); }
+.bar-rect.st-sorted { background: linear-gradient(180deg, #34d399, #059669); }
+.bar-rect.st-dim { background: #cbd5e1; color: #475569; }
+.bar-idx {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.merge-aux-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--purple-bg);
+  border: 1px dashed var(--purple-border);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+.merge-cell {
+  min-width: 34px;
+  height: 30px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1.5px solid var(--purple);
+  color: var(--purple);
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.metric-box {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 10px;
+  text-align: center;
+}
+.metric-lbl {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.metric-val {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.info-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.empty-hint {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.footer-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 22px;
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div class="brand-row">
+      <div class="brand-title">
+        <div class="brand-logo">DS</div>
+        <div>
+          <h1>《数据结构与算法》交互式可视化工作台</h1>
+          <div class="brand-sub">纯离线单文件 · 录制帧回放架构（单步前进/回退零卡顿）· C++ 代码同步高亮</div>
+        </div>
+      </div>
+      <div class="shortcut-hint">
+        快捷键：<span class="kbd">←</span> 上一步 <span class="kbd">→</span> 下一步 <span class="kbd">Space</span> 播放/暂停
+      </div>
+    </div>
+    <nav class="tab-bar" id="mainTabBar">
+      <button class="tab-btn active" data-tab="ll">🔗 单链表指针实验室 <span class="tab-ch">第2章</span></button>
+      <button class="tab-btn" data-tab="cq">🔄 循环队列环形槽 <span class="tab-ch">第3章</span></button>
+      <button class="tab-btn" data-tab="bt">🌳 二叉树与调用栈 <span class="tab-ch">第4章</span></button>
+      <button class="tab-btn" data-tab="gr">🕸️ 图算法与最短路 <span class="tab-ch">第5章</span></button>
+      <button class="tab-btn" data-tab="bst">🔍 二叉排序树 BST <span class="tab-ch">第6章</span></button>
+      <button class="tab-btn" data-tab="sort">📊 核心排序竞技场 <span class="tab-ch">第7章</span></button>
+    </nav>
+  </div>
+</header>
+
+<main class="main-wrap">
+
+  <!-- ==================== 1. 单链表指针实验室 ==================== -->
+  <section class="module-pane active" id="pane-ll">
+    <div class="toolbar-card">
+      <div class="toolbar-row">
+        <div class="pill-group" id="llModeGroup">
+          <span class="group-label">演示模式：</span>
+          <button class="btn active" data-mode="insert_ok">✅ 按位插入（先接后、再断前）</button>
+          <button class="btn btn-danger-pill" data-mode="insert_bad">❌ 反例插入（先断前→断链+死循环！）</button>
+          <button class="btn" data-mode="delete">✂️ 按位删除（三步法防泄漏）</button>
+          <button class="btn" data-mode="reverse">🔁 三指针原地反转（prev/cur/nxt）</button>
+        </div>
+      </div>
+      <div class="player-bar" id="player-ll"></div>
+    </div>
+
+    <div class="workspace-grid">
+      <div class="col-stack">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">内存指针现场（带头结点 head）</span>
+            <div class="legend">
+              <span class="legend-item"><span class="dot" style="background:#2563eb"></span>当前指针</span>
+              <span class="legend-item"><span class="dot" style="background:#059669"></span>新建/完成</span>
+              <span class="legend-item"><span class="dot" style="background:#d97706"></span>待操作节点</span>
+              <span class="legend-item"><span class="dot" style="background:#dc2626"></span>断链/释放/死循环</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="svg-stage" id="llSvgStage"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><span class="card-title">📌 实时指针与变量状态</span></div>
+          <div class="card-body">
+            <div class="vars-bar" id="llVars"></div>
+          </div>
+        </div>
+
+        <div class="explain-box" id="llExplain"></div>
+      </div>
+
+      <div class="col-stack">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">💻 同步 C++ 核心代码</span>
+            <span class="tag-pill tag-blue" id="llCodeTag">LinkList.cpp</span>
+          </div>
+          <div class="code-viewer" id="llCode"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 2. 循环队列环形槽 ==================== -->
+  <section class="module-pane" id="pane-cq">
+    <div class="toolbar-card">
+      <div class="toolbar-row">
+        <div class="pill-group">
+          <span class="group-label">交互操作：</span>
+          <input type="number" class="input-num" id="cqInput" value="10" min="-99" max="999" title="输入要入队的整数" />
+          <button class="btn btn-primary" id="cqBtnEnq">➕ 入队 Enqueue</button>
+          <button class="btn btn-amber" id="cqBtnDeq">➖ 出队 Dequeue</button>
+          <button class="btn btn-success" id="cqBtnWrap">🔁 一键演示绕圈（入4→出3→再入4看绕回0！）</button>
+          <button class="btn" id="cqBtnClear">🧹 清空队列</button>
+        </div>
+      </div>
+      <div class="player-bar" id="player-cq"></div>
+    </div>
+
+    <div class="workspace-grid">
+      <div class="col-stack">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">6 格环形数组（N = 6，故意空出 1 格，最多存 5 个元素）</span>
+            <div class="legend">
+              <span class="legend-item"><span class="dot" style="background:#2563eb"></span>front 队头</span>
+              <span class="legend-item"><span class="dot" style="background:#7c3aed"></span>rear 队尾(下一空位)</span>
+              <span class="legend-item"><span class="dot" style="background:#059669"></span>刚入队</span>
+              <span class="legend-item"><span class="dot" style="background:#f59e0b"></span>预留哨兵格</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="svg-stage" id="cqSvgStage"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><span class="card-title">📌 实时下标与取模公式</span></div>
+          <div class="card-body">
+            <div class="vars-bar" id="cqVars"></div>
+          </div>
+        </div>
+
+        <div class="explain-box" id="cqExplain"></div>
+      </div>
+
+      <div class="col-stack">
+        <div class="card">
+          <div class="card-head"><span class="card-title">🧮 核心判空 / 判满 / 长度实时仪表盘</span></div>
+          <div class="card-body">
+            <div class="cq-dashboard" id="cqDashboard"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">💻 同步 C++ 循环队列代码</span>
+            <span class="tag-pill tag-blue">CircularQueue.cpp</span>
+          </div>
+          <div class="code-viewer" id="cqCode"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 3. 二叉树遍历与调用栈 ==================== -->
+  <section class="module-pane" id="pane-bt">
+    <div class="toolbar-card">
+      <div class="toolbar-row">
+        <div class="pill-group" id="btModeGroup">
+          <span class="group-label">遍历方式：</span>
+          <button class="btn active" data-mode="pre">前序遍历（根-左-右）</button>
+          <button class="btn" data-mode="in">中序遍历（左-根-右）</button>
+          <button class="btn" data-mode="post">后序遍历（左-右-根）</button>
+          <button class="btn" data-mode="level">层序遍历（BFS 队列）</button>
+        </div>
+      </div>
+      <div class="player-bar" id="player-bt"></div>
+    </div>
+
+    <div class="workspace-grid">
+      <div class="col-stack">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">经典不对称 7 节点二叉树：1(2(4,5), 3(_,6(7,_)))</span>
+            <div class="legend">
+              <span class="legend-item"><span class="dot" style="background:#cbd5e1"></span>未访问</span>
+              <span class="legend-item"><span class="dot" style="background:#d97706"></span>栈中挂起</span>
+              <span class="legend-item"><span class="dot" style="background:#2563eb"></span>正在访问/处理</span>
+              <span class="legend-item"><span class="dot" style="background:#059669"></span>已输出完成</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="svg-stage" id="btSvgStage"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><span class="card-title">📤 遍历输出序列</span></div>
+          <div class="card-body">
+            <div class="seq-strip" id="btOutput"></div>
+          </div>
+        </div>
+
+        <div class="explain-box" id="btExplain"></div>
+      </div>
+
+      <div class="col-stack">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title" id="btAuxTitle">📚 模拟递归调用栈（栈顶在上）</span>
+            <span class="tag-pill tag-blue" id="btAuxCount">深度 0</span>
+          </div>
+          <div class="card-body" id="btAuxBody"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">💻 同步 C++ 遍历代码</span>
+            <span class="tag-pill tag-blue" id="btCodeTag">BinaryTree.cpp</span>
+          </div>
+          <div class="code-viewer" id="btCode"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 4. 图算法演示器 ==================== -->
+  <section class="module-pane" id="pane-gr">
+    <div class="toolbar-card">
+      <div class="toolbar-row">
+        <div class="pill-group" id="grModeGroup">
+          <span class="group-label">图算法：</span>
+          <button class="btn active" data-mode="bfs">🌊 BFS 广度优先（队列 + 入队标蓝）</button>
+          <button class="btn" data-mode="dfs">🌲 DFS 深度优先（递归栈回溯）</button>
+          <button class="btn" data-mode="dijkstra">🧭 Dijkstra 最短路（松弛更新 dist[]）</button>
+        </div>
+        <div class="pill-group">
+          <span class="group-label">起点：</span>
+          <select class="select-box" id="grStartSelect">
+            <option value="0" selected>顶点 0（推荐）</option>
+            <option value="1">顶点 1</option>
+            <option value="2">顶点 2</option>
+            <option value="3">顶点 3</option>
+            <option value="4">顶点 4</option>
+            <option value="5">顶点 5</option>
+          </select>
+        </div>
+      </div>
+      <div class="player-bar" id="player-gr"></div>
+    </div>
+
+    <div class="workspace-grid">
+      <div class="col-stack">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">6 顶点带权多路径含环无向图</span>
+            <div class="legend">
+              <span class="legend-item"><span class="dot" style="background:#2563eb"></span>已入队/当前探索</span>
+              <span class="legend-item"><span class="dot" style="background:#d97706"></span>正在检查/松弛边</span>
+              <span class="legend-item"><span class="dot" style="background:#059669"></span>已确定/访问完毕</span>
+              <span class="legend-item"><span class="dot" style="background:#dc2626"></span>已访问跳过(防死循环)</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="svg-stage" id="grSvgStage"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><span class="card-title">📌 实时变量与遍历序</span></div>
+          <div class="card-body">
+            <div class="vars-bar" id="grVars"></div>
+          </div>
+        </div>
+
+        <div class="explain-box" id="grExplain"></div>
+      </div>
+
+      <div class="col-stack">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title" id="grAuxTitle">📊 队列与状态表</span>
+          </div>
+          <div class="card-body" id="grAuxBody"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">💻 同步 C++ 图算法代码</span>
+            <span class="tag-pill tag-blue" id="grCodeTag">Graph.cpp</span>
+          </div>
+          <div class="code-viewer" id="grCode"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 5. 二叉排序树 BST ==================== -->
+  <section class="module-pane" id="pane-bst">
+    <div class="toolbar-card">
+      <div class="toolbar-row">
+        <div class="pill-group">
+          <span class="group-label">数值操作：</span>
+          <input type="number" class="input-num" id="bstInput" value="65" min="-99" max="999" title="输入目标整数" />
+          <button class="btn btn-primary" id="bstBtnSearch">🔍 查找 Search</button>
+          <button class="btn btn-success" id="bstBtnInsert">➕ 插入 Insert</button>
+          <button class="btn btn-danger" id="bstBtnDelete">🗑️ 删除 Delete</button>
+          <button class="btn btn-amber" id="bstBtnDemo50">⭐ 一键演示：删除双孩子根节点 50</button>
+          <button class="btn" id="bstBtnReset">↺ 恢复预置树</button>
+        </div>
+      </div>
+      <div class="player-bar" id="player-bst"></div>
+    </div>
+
+    <div class="workspace-grid">
+      <div class="col-stack">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">二叉排序树（左子树 &lt; 根 &lt; 右子树）</span>
+            <div class="legend">
+              <span class="legend-item"><span class="dot" style="background:#2563eb"></span>当前比较节点</span>
+              <span class="legend-item"><span class="dot" style="background:#7c3aed"></span>右子树最小后继</span>
+              <span class="legend-item"><span class="dot" style="background:#059669"></span>命中/新插入</span>
+              <span class="legend-item"><span class="dot" style="background:#dc2626"></span>待删除节点</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="svg-stage" id="bstSvgStage"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">📐 实时中序遍历序列（检验 BST 铁律）</span>
+            <span class="tag-pill tag-green" id="bstSortedTag">✅ 严格升序</span>
+          </div>
+          <div class="card-body">
+            <div class="seq-strip" id="bstInorder"></div>
+          </div>
+        </div>
+
+        <div class="explain-box" id="bstExplain"></div>
+      </div>
+
+      <div class="col-stack">
+        <div class="card">
+          <div class="card-head"><span class="card-title">📌 当前步骤状态</span></div>
+          <div class="card-body">
+            <div class="vars-bar" id="bstVars"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">💻 同步 C++ BST 代码</span>
+            <span class="tag-pill tag-blue" id="bstCodeTag">BST.cpp</span>
+          </div>
+          <div class="code-viewer" id="bstCode"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 6. 核心排序对比竞技场 ==================== -->
+  <section class="module-pane" id="pane-sort">
+    <div class="toolbar-card">
+      <div class="toolbar-row">
+        <div class="pill-group" id="sortAlgoGroup">
+          <span class="group-label">排序算法：</span>
+          <button class="btn active" data-algo="bubble">起泡排序(优化)</button>
+          <button class="btn" data-algo="insert">直接插入</button>
+          <button class="btn" data-algo="select">简单选择</button>
+          <button class="btn" data-algo="quick">快速排序</button>
+          <button class="btn" data-algo="heap">堆排序(双视图)</button>
+          <button class="btn" data-algo="merge">归并排序</button>
+        </div>
+        <div class="pill-group" id="sortDataGroup">
+          <span class="group-label">初始数据：</span>
+          <button class="btn btn-sm active" data-preset="random">🎲 随机</button>
+          <button class="btn btn-sm" data-preset="reverse">📉 逆序</button>
+          <button class="btn btn-sm" data-preset="nearly">📈 近乎有序</button>
+          <button class="btn btn-sm" data-preset="equal">🟰 全相等</button>
+        </div>
+      </div>
+      <div class="player-bar" id="player-sort"></div>
+    </div>
+
+    <div class="workspace-grid">
+      <div class="col-stack">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title" id="sortStageTitle">排序动画柱状图</span>
+            <div class="legend">
+              <span class="legend-item"><span class="dot" style="background:#3b82f6"></span>未排区域</span>
+              <span class="legend-item"><span class="dot" style="background:#d97706"></span>比较中</span>
+              <span class="legend-item"><span class="dot" style="background:#dc2626"></span>交换/写入</span>
+              <span class="legend-item"><span class="dot" style="background:#7c3aed"></span>基准/当前值</span>
+              <span class="legend-item"><span class="dot" style="background:#059669"></span>已归位</span>
+            </div>
+          </div>
+          <div class="card-body sort-stage">
+            <div class="bars-wrap" id="sortBars"></div>
+            <div id="sortExtraStage"></div>
+          </div>
+        </div>
+
+        <div class="explain-box" id="sortExplain"></div>
+      </div>
+
+      <div class="col-stack">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">📈 实时性能统计与算法画像</span>
+          </div>
+          <div class="card-body">
+            <div class="metrics-grid" id="sortMetrics"></div>
+            <div class="info-pills" id="sortProfile" style="margin-top:10px;"></div>
+            <div class="vars-bar" id="sortVars" style="margin-top:10px;"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">💻 同步 C++ 核心排序代码</span>
+            <span class="tag-pill tag-blue" id="sortCodeTag">Sort.cpp</span>
+          </div>
+          <div class="code-viewer" id="sortCode"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer-note">
+    《数据结构与算法》自学教程配套可视化工作台 · 纯本地离线 HTML5 + SVG + Vanilla JS 构建 · 零外部依赖
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============================================================================
+   * 通用工具与帧播放器 (Frame Player Engine)
+   * ============================================================================ */
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function highlightCpp(line) {
+    let s = escHtml(line);
+    // Split comment
+    const cmIdx = s.indexOf("//");
+    let codePart = cmIdx >= 0 ? s.slice(0, cmIdx) : s;
+    let cmPart = cmIdx >= 0 ? `<span class="ck-cm">${s.slice(cmIdx)}</span>` : "";
+
+    codePart = codePart.replace(
+      /\b(if|else|while|for|return|break|continue|new|delete|nullptr|true|false|and|or)\b/g,
+      '<span class="ck-kw">$1</span>'
+    );
+    codePart = codePart.replace(
+      /\b(int|void|bool|Node|TreeNode|BSTNode|queue|vector|swap|const)\b/g,
+      '<span class="ck-ty">$1</span>'
+    );
+    return codePart + cmPart;
+  }
+
+  function renderCode(container, lines, activeLines, dangerMode) {
+    const activeSet = new Set(activeLines || []);
+    const cls = dangerMode ? "active-danger" : "active";
+    let html = "";
+    for (let i = 0; i < lines.length; i++) {
+      const ln = i + 1;
+      const isAct = activeSet.has(ln);
+      html += `<div class="code-line${isAct ? " " + cls : ""}" data-ln="${ln}"><span class="code-ln">${ln}</span><span class="code-txt">${highlightCpp(lines[i])}</span></div>`;
+    }
+    container.innerHTML = html;
+    if (activeLines && activeLines.length > 0) {
+      const firstEl = container.querySelector(`.code-line[data-ln="${activeLines[0]}"]`);
+      if (firstEl) {
+        const top = firstEl.offsetTop;
+        const ch = container.clientHeight;
+        if (top < container.scrollTop + 20 || top > container.scrollTop + ch - 44) {
+          container.scrollTop = Math.max(0, top - ch / 3);
+        }
+      }
+    }
+  }
+
+  function renderVars(container, vars) {
+    if (!vars || vars.length === 0) {
+      container.innerHTML = '<span class="empty-hint">当前步骤无局部变量</span>';
+      return;
+    }
+    container.innerHTML = vars
+      .map(v => `<div class="var-chip${v.tone ? " tone-" + v.tone : ""}"><span class="v-name">${escHtml(v.name)} =</span><span class="v-val">${escHtml(v.val)}</span></div>`)
+      .join("");
+  }
+
+  function renderExplain(container, frame) {
+    const tone = frame.tone || "info";
+    container.className = "explain-box" + (tone !== "info" ? " tone-" + tone : "");
+    let html = `<div class="explain-main">${frame.explain}</div>`;
+    if (frame.tip) {
+      html += `<div class="explain-tip">${frame.tip}</div>`;
+    }
+    container.innerHTML = html;
+  }
+
+  class FramePlayer {
+    constructor(mountId, onRender, defaultSpeedMs = 950) {
+      this.mount = document.getElementById(mountId);
+      this.onRender = onRender;
+      this.frames = [];
+      this.idx = 0;
+      this.timer = null;
+      this.speedMs = defaultSpeedMs;
+      this.buildUI();
+    }
+
+    buildUI() {
+      this.mount.innerHTML = `
+        <div class="player-controls">
+          <button class="btn btn-sm" data-act="reset" title="回到第1步">⏮ 重置</button>
+          <button class="btn btn-sm" data-act="prev" title="上一步 (←)">◀ 上一步</button>
+          <button class="btn btn-sm btn-primary" data-act="play" title="自动播放/暂停 (Space)">▶ 播放</button>
+          <button class="btn btn-sm" data-act="next" title="下一步 (→)">下一步 ▶</button>
+        </div>
+        <div class="speed-wrap">
+          <span>速度</span>
+          <input type="range" min="180" max="1800" step="60" value="${1980 - this.speedMs}" data-act="speed" />
+          <span data-role="speedLbl">${this.getSpeedLabel()}</span>
+        </div>
+        <div class="step-counter" data-role="counter">Step 1 / 1</div>
+        <div class="progress-track" data-role="track" title="点击跳转到任意步骤">
+          <div class="progress-fill" data-role="fill" style="width:0%"></div>
+        </div>
+      `;
+      this.btnReset = this.mount.querySelector('[data-act="reset"]');
+      this.btnPrev = this.mount.querySelector('[data-act="prev"]');
+      this.btnPlay = this.mount.querySelector('[data-act="play"]');
+      this.btnNext = this.mount.querySelector('[data-act="next"]');
+      this.slider = this.mount.querySelector('[data-act="speed"]');
+      this.speedLbl = this.mount.querySelector('[data-role="speedLbl"]');
+      this.counter = this.mount.querySelector('[data-role="counter"]');
+      this.track = this.mount.querySelector('[data-role="track"]');
+      this.fill = this.mount.querySelector('[data-role="fill"]');
+
+      this.btnReset.addEventListener("click", () => this.reset());
+      this.btnPrev.addEventListener("click", () => this.prev());
+      this.btnNext.addEventListener("click", () => this.next());
+      this.btnPlay.addEventListener("click", () => this.togglePlay());
+      this.slider.addEventListener("input", () => {
+        this.speedMs = 1980 - Number(this.slider.value);
+        this.speedLbl.textContent = this.getSpeedLabel();
+        if (this.timer) {
+          this.pause();
+          this.play();
+        }
+      });
+      this.track.addEventListener("click", (e) => {
+        if (this.frames.length <= 1) return;
+        const rect = this.track.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        this.pause();
+        this.goTo(Math.round(ratio * (this.frames.length - 1)));
+      });
+    }
+
+    getSpeedLabel() {
+      const mult = (960 / this.speedMs).toFixed(1);
+      return `${mult}x`;
+    }
+
+    setFrames(frames, autoPlay = false, startIndex = 0) {
+      this.pause();
+      this.frames = frames || [];
+      this.idx = Math.max(0, Math.min(startIndex, Math.max(0, this.frames.length - 1)));
+      this.renderCurrent();
+      if (autoPlay && this.frames.length > 1) {
+        this.play();
+      }
+    }
+
+    renderCurrent() {
+      const n = this.frames.length;
+      if (n === 0) return;
+      this.counter.textContent = `Step ${this.idx + 1} / ${n}`;
+      const pct = n <= 1 ? 100 : (this.idx / (n - 1)) * 100;
+      this.fill.style.width = `${pct}%`;
+      this.btnPrev.disabled = this.idx <= 0;
+      this.btnNext.disabled = this.idx >= n - 1;
+      this.btnPlay.textContent = this.timer ? "⏸ 暂停" : "▶ 播放";
+      this.onRender(this.frames[this.idx], this.idx, n);
+    }
+
+    goTo(i) {
+      if (this.frames.length === 0) return;
+      this.idx = Math.max(0, Math.min(i, this.frames.length - 1));
+      this.renderCurrent();
+    }
+
+    reset() {
+      this.pause();
+      this.goTo(0);
+    }
+
+    prev() {
+      this.pause();
+      if (this.idx > 0) this.goTo(this.idx - 1);
+    }
+
+    next() {
+      this.pause();
+      if (this.idx < this.frames.length - 1) this.goTo(this.idx + 1);
+    }
+
+    play() {
+      if (this.timer || this.frames.length <= 1) return;
+      if (this.idx >= this.frames.length - 1) this.idx = 0;
+      this.timer = setInterval(() => {
+        if (this.idx < this.frames.length - 1) {
+          this.idx++;
+          this.renderCurrent();
+        } else {
+          this.pause();
+        }
+      }, this.speedMs);
+      this.renderCurrent();
+    }
+
+    pause() {
+      if (this.timer) {
+        clearInterval(this.timer);
+        this.timer = null;
+      }
+      if (this.btnPlay) this.btnPlay.textContent = "▶ 播放";
+    }
+
+    togglePlay() {
+      if (this.timer) this.pause();
+      else this.play();
+    }
+  }
+
+  const players = {};
+  let activeTab = "ll";
+
+  /* ============================================================================
+   * 模块 1：单链表指针实验室（第 2 章）
+   * ============================================================================ */
+  const LL = (function () {
+    const CODES = {
+      insert_ok: [
+        "// 在第 i=3 个位置插入 x=25（带头结点）",
+        "Node* p = head; int j = 0;",
+        "while (p != nullptr && j < i - 1) {",
+        "    p = p->next; j++;",
+        "}",
+        "Node* s = new Node(25);  // 1. 申请新节点",
+        "s->next = p->next;       // 2. ✅ 先接后！抓住 30",
+        "p->next = s;             // 3. ✅ 再断前！20 指向 25"
+      ],
+      insert_bad: [
+        "// ❌ 反例演示：把关键两行写反的灾难！",
+        "Node* p = head; int j = 0;",
+        "while (p != nullptr && j < i - 1) { p = p->next; j++; }",
+        "Node* s = new Node(25);",
+        "p->next = s;             // ❌ 灾难第1步：先断前！30、40 彻底失联！",
+        "s->next = p->next;       // 💥 灾难第2步：p->next 已是 s，导致 s->next = s 死循环！"
+      ],
+      delete: [
+        "// 删除第 i=3 个节点（值 30），三步法防内存泄漏",
+        "Node* p = head; int j = 0;",
+        "while (p->next != nullptr && j < i - 1) {",
+        "    p = p->next; j++;",
+        "}",
+        "Node* q = p->next;       // 1. 先用 q 记住要删的节点 30",
+        "p->next = q->next;       // 2. 摘链：让 20 直接绕过 30 指向 40",
+        "delete q;                // 3. 释放内存，杜绝内存泄漏！"
+      ],
+      reverse: [
+        "// 三指针原地反转（保留头结点 head）",
+        "Node* prev = nullptr;",
+        "Node* cur = head->next;",
+        "while (cur != nullptr) {",
+        "    Node* nxt = cur->next; // 1. 保命：先记住下一站",
+        "    cur->next = prev;      // 2. 核心：当前节点指针掉头！",
+        "    prev = cur;            // 3. prev 右移一步",
+        "    cur = nxt;             // 4. cur 右移一步",
+        "}",
+        "head->next = prev;         // 5. 头结点重新接上新链表头"
+      ]
+    };
+
+    function baseNodes() {
+      return [
+        { id: "H", label: "head", data: "HEAD", x: 28, y: 120, isHead: true },
+        { id: "N1", data: "10", x: 158, y: 120 },
+        { id: "N2", data: "20", x: 288, y: 120 },
+        { id: "N3", data: "30", x: 418, y: 120 },
+        { id: "N4", data: "40", x: 548, y: 120 }
+      ];
+    }
+
+    function buildInsertOk() {
+      const frames = [];
+      const mkLinks = (arr) => arr;
+      frames.push({
+        nodes: baseNodes(),
+        links: mkLinks([
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N3" }, { from: "N3", to: "N4" }, { from: "N4", to: "NULL" }
+        ]),
+        ptrs: [{ node: "H", name: "p", color: "#2563eb", pos: "top" }],
+        vars: [{ name: "i", val: "3" }, { name: "j", val: "0", tone: "blue" }, { name: "p", val: "head", tone: "blue" }],
+        codeLines: [2],
+        explain: "目标：在第 3 个位置（20 和 30 之间）插入新节点 25。指针 p 从头结点 head 出发，j = 0。",
+        tip: "💡 <strong>为什么要找第 i-1 个节点？</strong>单链表只能向后走，要在第 3 位插入，必须停在它的前驱（第 2 位节点 20）上修改它的 next 指针。"
+      });
+      frames.push({
+        nodes: baseNodes().map(n => n.id === "N1" ? { ...n, state: "active" } : n),
+        links: mkLinks([
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N3" }, { from: "N3", to: "N4" }, { from: "N4", to: "NULL" }
+        ]),
+        ptrs: [{ node: "N1", name: "p", color: "#2563eb", pos: "top" }],
+        vars: [{ name: "i - 1", val: "2" }, { name: "j", val: "1", tone: "blue" }, { name: "p->data", val: "10", tone: "blue" }],
+        codeLines: [3, 4],
+        explain: "j = 0 < 2，执行 p = p->next，p 移动到第 1 个数据节点 10，j 变为 1。",
+      });
+      frames.push({
+        nodes: baseNodes().map(n => n.id === "N2" ? { ...n, state: "active" } : n),
+        links: mkLinks([
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N3" }, { from: "N3", to: "N4" }, { from: "N4", to: "NULL" }
+        ]),
+        ptrs: [{ node: "N2", name: "p", color: "#2563eb", pos: "top" }],
+        vars: [{ name: "i - 1", val: "2" }, { name: "j", val: "2 (停!)", tone: "green" }, { name: "p->data", val: "20", tone: "blue" }],
+        codeLines: [3, 4],
+        explain: "p 继续后移到达节点 20，此时 j = 2 == i - 1，循环结束！成功找到前驱节点 p(20)。",
+      });
+      const withS = [
+        ...baseNodes().map(n => n.id === "N2" ? { ...n, state: "active" } : n),
+        { id: "S", data: "25", x: 353, y: 222, state: "new" }
+      ];
+      frames.push({
+        nodes: withS,
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N3" }, { from: "N3", to: "N4" }, { from: "N4", to: "NULL" }
+        ],
+        ptrs: [
+          { node: "N2", name: "p", color: "#2563eb", pos: "top" },
+          { node: "S", name: "s", color: "#059669", pos: "bottom" }
+        ],
+        vars: [{ name: "p->data", val: "20", tone: "blue" }, { name: "s->data", val: "25", tone: "green" }, { name: "s->next", val: "nullptr" }],
+        codeLines: [6],
+        explain: "在堆内存中 new 出新节点 s(25)，此时它还是个孤立节点，准备接入链表。",
+      });
+      frames.push({
+        nodes: withS.map(n => n.id === "N3" ? { ...n, state: "warn" } : n),
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N3" }, { from: "N3", to: "N4" }, { from: "N4", to: "NULL" },
+          { from: "S", to: "N3", color: "#059669", style: "curveUp" }
+        ],
+        ptrs: [
+          { node: "N2", name: "p", color: "#2563eb", pos: "top" },
+          { node: "S", name: "s", color: "#059669", pos: "bottom" }
+        ],
+        vars: [{ name: "p->next", val: "节点30" }, { name: "s->next", val: "节点30 ✅", tone: "green" }],
+        codeLines: [7],
+        tone: "good",
+        explain: "✅ 关键第 1 步（先接后）：执行 s->next = p->next！让新节点 25 先稳稳抓住 30 的地址。",
+        tip: "💡 <strong>为什么这步必须先做？</strong>现在节点 20 和节点 25 同时指着 30，后半条链绝对安全，接下来放心修改 p->next 也不会丢节点！"
+      });
+      frames.push({
+        nodes: withS,
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "S", color: "#2563eb", style: "curveDown" },
+          { from: "S", to: "N3", color: "#059669", style: "curveUp" },
+          { from: "N3", to: "N4" }, { from: "N4", to: "NULL" }
+        ],
+        ptrs: [
+          { node: "N2", name: "p", color: "#2563eb", pos: "top" },
+          { node: "S", name: "s", color: "#059669", pos: "bottom" }
+        ],
+        vars: [{ name: "p->next", val: "节点25 ✅", tone: "blue" }, { name: "s->next", val: "节点30 ✅", tone: "green" }],
+        codeLines: [8],
+        tone: "good",
+        explain: "✅ 关键第 2 步（再断前）：执行 p->next = s！节点 20 断开与 30 的旧连线，改指向新节点 25。",
+      });
+      frames.push({
+        nodes: [
+          { id: "H", data: "HEAD", x: 18, y: 120, isHead: true },
+          { id: "N1", data: "10", x: 132, y: 120 },
+          { id: "N2", data: "20", x: 246, y: 120 },
+          { id: "S", data: "25", x: 360, y: 120, state: "new" },
+          { id: "N3", data: "30", x: 474, y: 120 },
+          { id: "N4", data: "40", x: 588, y: 120 }
+        ],
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" }, { from: "N2", to: "S", color: "#059669" },
+          { from: "S", to: "N3", color: "#059669" }, { from: "N3", to: "N4" }, { from: "N4", to: "NULL" }
+        ],
+        ptrs: [],
+        vars: [{ name: "结果链表", val: "10 → 20 → 25 → 30 → 40 → NULL", tone: "green" }],
+        codeLines: [7, 8],
+        tone: "good",
+        explain: "🎉 拉直整理后，链表完美变为 10 → 20 → 25 → 30 → 40！时间复杂度 O(n)（找前驱），修改指针仅 O(1)。",
+        tip: "📌 <strong>口诀牢记：</strong>插入节点「先接后，再断前」，先写 <code>s->next = p->next</code>，再写 <code>p->next = s</code>！"
+      });
+      return frames;
+    }
+
+    function buildInsertBad() {
+      const frames = [];
+      frames.push({
+        nodes: baseNodes().map(n => n.id === "N2" ? { ...n, state: "active" } : n),
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N3" }, { from: "N3", to: "N4" }, { from: "N4", to: "NULL" }
+        ],
+        ptrs: [{ node: "N2", name: "p", color: "#2563eb", pos: "top" }],
+        vars: [{ name: "p->data", val: "20", tone: "blue" }, { name: "p->next", val: "节点30" }],
+        codeLines: [2, 3],
+        explain: "同样已找到前驱节点 p(20)，准备在 20 和 30 之间插入 25。下面看看如果把两行赋值写反会发生什么！",
+      });
+      const withS = [
+        ...baseNodes().map(n => n.id === "N2" ? { ...n, state: "active" } : n),
+        { id: "S", data: "25", x: 353, y: 222, state: "warn" }
+      ];
+      frames.push({
+        nodes: withS,
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N3" }, { from: "N3", to: "N4" }, { from: "N4", to: "NULL" }
+        ],
+        ptrs: [
+          { node: "N2", name: "p", color: "#2563eb", pos: "top" },
+          { node: "S", name: "s", color: "#d97706", pos: "bottom" }
+        ],
+        vars: [{ name: "p->next", val: "节点30" }, { name: "s->data", val: "25", tone: "amber" }],
+        codeLines: [4],
+        explain: "创建好新节点 s(25)。注意此刻只有 p->next 唯一知道节点 30 的内存地址！",
+      });
+      // Disaster step 1: p->next = s; 30 & 40 drift away!
+      frames.push({
+        nodes: [
+          { id: "H", data: "HEAD", x: 28, y: 120, isHead: true },
+          { id: "N1", data: "10", x: 158, y: 120 },
+          { id: "N2", data: "20", x: 288, y: 120, state: "danger" },
+          { id: "S", data: "25", x: 345, y: 222, state: "danger" },
+          { id: "N3", data: "30", x: 438, y: 58, state: "lost", badge: "失联! 内存泄漏" },
+          { id: "N4", data: "40", x: 568, y: 58, state: "lost", badge: "失联!" }
+        ],
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "S", color: "#dc2626", style: "curveDown" },
+          { from: "N2", to: "N3", color: "#dc2626", style: "broken" },
+          { from: "N3", to: "N4", color: "#f87171", dashed: true },
+          { from: "N4", to: "NULL", color: "#f87171", dashed: true }
+        ],
+        ptrs: [
+          { node: "N2", name: "p", color: "#2563eb", pos: "top" },
+          { node: "S", name: "s", color: "#dc2626", pos: "bottom" }
+        ],
+        vars: [
+          { name: "p->next", val: "已被改写为 s(25)!", tone: "red" },
+          { name: "节点30、40", val: "彻底失联 (内存泄漏)", tone: "red" }
+        ],
+        codeLines: [5],
+        dangerCode: true,
+        tone: "danger",
+        explain: "❌ 灾难第 1 步：先执行了 p->next = s！节点 20 直接把原本指向 30 的链接覆盖掉了！",
+        tip: "💥 <strong>为什么失联了？</strong>内存中没有任何指针再保存 30 的地址，30 → 40 整条子链漂浮在堆内存里永远找不回来了（断链 + 内存泄漏）！"
+      });
+      // Disaster step 2: s->next = p->next => self-loop!
+      frames.push({
+        nodes: [
+          { id: "H", data: "HEAD", x: 28, y: 120, isHead: true },
+          { id: "N1", data: "10", x: 158, y: 120 },
+          { id: "N2", data: "20", x: 288, y: 120, state: "danger" },
+          { id: "S", data: "25", x: 345, y: 214, state: "danger", badge: "自环死循环!" },
+          { id: "N3", data: "30", x: 446, y: 56, state: "lost", badge: "永远失联!" },
+          { id: "N4", data: "40", x: 574, y: 56, state: "lost" }
+        ],
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "S", color: "#dc2626", style: "curveDown" },
+          { from: "S", to: "S", color: "#dc2626", style: "selfLoop" },
+          { from: "N3", to: "N4", color: "#f87171", dashed: true },
+          { from: "N4", to: "NULL", color: "#f87171", dashed: true }
+        ],
+        ptrs: [
+          { node: "N2", name: "p", color: "#2563eb", pos: "top" },
+          { node: "S", name: "s", color: "#dc2626", pos: "bottom" }
+        ],
+        vars: [
+          { name: "p->next", val: "s (25)", tone: "red" },
+          { name: "s->next = p->next", val: "等价于 s->next = s 💥", tone: "red" }
+        ],
+        codeLines: [6],
+        dangerCode: true,
+        tone: "danger",
+        explain: "💥 灾难第 2 步：接着执行 s->next = p->next。因为 p->next 早就变成 s 了，这行代码竟让 25 指向了自己！",
+        tip: "🚨 <strong>惨痛教训：</strong>遍历链表会打印 10, 20, 25, 25, 25... 无限死循环，且 30、40 永久泄漏！以后写链表插入，手一定要先写 <code>s->next = p->next</code>！"
+      });
+      return frames;
+    }
+
+    function buildDelete() {
+      const frames = [];
+      frames.push({
+        nodes: baseNodes(),
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N3" }, { from: "N3", to: "N4" }, { from: "N4", to: "NULL" }
+        ],
+        ptrs: [{ node: "H", name: "p", color: "#2563eb", pos: "top" }],
+        vars: [{ name: "删除位置 i", val: "3 (节点30)" }, { name: "j", val: "0" }, { name: "p", val: "head", tone: "blue" }],
+        codeLines: [2],
+        explain: "目标：删除第 3 个节点（值为 30）。和插入一样，先让 p 走到它的前驱（第 2 个节点 20）。"
+      });
+      frames.push({
+        nodes: baseNodes().map(n => n.id === "N2" ? { ...n, state: "active" } : n),
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N3" }, { from: "N3", to: "N4" }, { from: "N4", to: "NULL" }
+        ],
+        ptrs: [{ node: "N2", name: "p", color: "#2563eb", pos: "top" }],
+        vars: [{ name: "j", val: "2 (到达前驱)", tone: "green" }, { name: "p->data", val: "20", tone: "blue" }],
+        codeLines: [3, 4],
+        explain: "循环走两步后，p 停在节点 20 上（j = 2 == i - 1）。它的下一个节点 p->next 就是待删节点 30。"
+      });
+      frames.push({
+        nodes: baseNodes().map(n => n.id === "N2" ? { ...n, state: "active" } : n.id === "N3" ? { ...n, state: "warn" } : n),
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N3" }, { from: "N3", to: "N4" }, { from: "N4", to: "NULL" }
+        ],
+        ptrs: [
+          { node: "N2", name: "p", color: "#2563eb", pos: "top" },
+          { node: "N3", name: "q", color: "#d97706", pos: "top" }
+        ],
+        vars: [{ name: "p->data", val: "20", tone: "blue" }, { name: "q", val: "节点30 (已锁定)", tone: "amber" }],
+        codeLines: [6],
+        tone: "warn",
+        explain: "三步法第 1 步：Node* q = p->next; 先派临时指针 q 把节点 30 牢牢抓住！",
+        tip: "💡 <strong>为什么不能直接写 p->next = p->next->next？</strong>如果直接跳过 30，就没人记得 30 的地址，再也没法 delete 释放它的内存了（内存泄漏）！"
+      });
+      frames.push({
+        nodes: [
+          { id: "H", data: "HEAD", x: 28, y: 120, isHead: true },
+          { id: "N1", data: "10", x: 158, y: 120 },
+          { id: "N2", data: "20", x: 288, y: 120, state: "active" },
+          { id: "N3", data: "30", x: 418, y: 215, state: "warn", badge: "已摘链，待释放" },
+          { id: "N4", data: "40", x: 548, y: 120 }
+        ],
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N4", color: "#059669", style: "bypass" },
+          { from: "N3", to: "N4", color: "#94a3b8", dashed: true },
+          { from: "N4", to: "NULL" }
+        ],
+        ptrs: [
+          { node: "N2", name: "p", color: "#2563eb", pos: "top" },
+          { node: "N3", name: "q", color: "#d97706", pos: "bottom" }
+        ],
+        vars: [{ name: "p->next", val: "节点40 ✅", tone: "green" }, { name: "q", val: "节点30 (待 delete)", tone: "amber" }],
+        codeLines: [7],
+        tone: "good",
+        explain: "三步法第 2 步（摘链）：p->next = q->next; 让 20 直接绕过 30 指向 40，链表依然连续完整！"
+      });
+      frames.push({
+        nodes: [
+          { id: "H", data: "HEAD", x: 28, y: 120, isHead: true },
+          { id: "N1", data: "10", x: 158, y: 120 },
+          { id: "N2", data: "20", x: 288, y: 120 },
+          { id: "N3", data: "30", x: 418, y: 215, state: "lost", badge: "delete q 已释放!" },
+          { id: "N4", data: "40", x: 548, y: 120 }
+        ],
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N4", color: "#059669", style: "bypass" },
+          { from: "N4", to: "NULL" }
+        ],
+        ptrs: [{ node: "N2", name: "p", color: "#2563eb", pos: "top" }],
+        vars: [{ name: "delete q", val: "释放节点30内存 ✅", tone: "red" }],
+        codeLines: [8],
+        tone: "danger",
+        explain: "三步法第 3 步：执行 delete q; 将节点 30 占用的堆内存归还操作系统，干干净净零泄漏！"
+      });
+      frames.push({
+        nodes: [
+          { id: "H", data: "HEAD", x: 58, y: 120, isHead: true },
+          { id: "N1", data: "10", x: 198, y: 120 },
+          { id: "N2", data: "20", x: 338, y: 120 },
+          { id: "N4", data: "40", x: 478, y: 120 }
+        ],
+        links: [
+          { from: "H", to: "N1" }, { from: "N1", to: "N2" },
+          { from: "N2", to: "N4", color: "#059669" }, { from: "N4", to: "NULL" }
+        ],
+        ptrs: [],
+        vars: [{ name: "结果链表", val: "10 → 20 → 40 → NULL", tone: "green" }],
+        codeLines: [6, 7, 8],
+        tone: "good",
+        explain: "🎉 删除完成！记住删除三步法：① q = p->next 记住它 → ② p->next = q->next 摘下来 → ③ delete q 释放它。"
+      });
+      return frames;
+    }
+
+    function buildReverse() {
+      const frames = [];
+      const vals = ["10", "20", "30", "40"];
+      const ids = ["N1", "N2", "N3", "N4"];
+      const basePos = [
+        { id: "H", data: "HEAD", x: 24, y: 128, isHead: true },
+        { id: "N1", data: "10", x: 158, y: 128 },
+        { id: "N2", data: "20", x: 288, y: 128 },
+        { id: "N3", data: "30", x: 418, y: 128 },
+        { id: "N4", data: "40", x: 548, y: 128 }
+      ];
+
+      function makeLinks(reversedCount, headTarget) {
+        // reversedCount = k means edges for N1..Nk are reversed (N1->NULL_L, N2->N1, ..., Nk->N_{k-1})
+        // remaining edges N_{k+1}->N_{k+2} ... N4->NULL
+        const ls = [];
+        if (headTarget === "N1") ls.push({ from: "H", to: "N1", dashed: reversedCount > 0, color: reversedCount > 0 ? "#cbd5e1" : "#475569" });
+        else if (headTarget === "N4") ls.push({ from: "H", to: "N4", color: "#059669", style: "headToTail" });
+
+        for (let idx = 0; idx < 4; idx++) {
+          const id = ids[idx];
+          if (idx < reversedCount) {
+            if (idx === 0) ls.push({ from: "N1", to: "NULL_LEFT", color: "#7c3aed", style: "revNull" });
+            else ls.push({ from: id, to: ids[idx - 1], color: "#7c3aed", style: "reverse" });
+          } else {
+            if (idx < 3) ls.push({ from: id, to: ids[idx + 1] });
+            else ls.push({ from: "N4", to: "NULL" });
+          }
+        }
+        return ls;
+      }
+
+      function labelOf(i) {
+        if (i < 0) return "nullptr";
+        if (i >= 4) return "nullptr";
+        return `节点${vals[i]}`;
+      }
+
+      frames.push({
+        nodes: basePos.map(n => n.id === "N1" ? { ...n, state: "active" } : n),
+        links: makeLinks(0, "N1"),
+        ptrs: [
+          { node: "N1", name: "cur", color: "#2563eb", pos: "top" }
+        ],
+        vars: [
+          { name: "prev", val: "nullptr", tone: "purple" },
+          { name: "cur", val: "节点10", tone: "blue" },
+          { name: "nxt", val: "未定义" }
+        ],
+        codeLines: [2, 3],
+        explain: "初始化：prev = nullptr（反转后的新尾巴要指向空），cur = head->next（从第 1 个数据节点 10 开始）。",
+        tip: "💡 <strong>为什么要三个指针？</strong>cur 要把 next 往回指，一旦掉头就丢了后面的链，所以必须用第 3 个指针 <code>nxt</code> 提前存下 cur->next！"
+      });
+
+      for (let k = 0; k < 4; k++) {
+        const curId = ids[k];
+        const prevId = k > 0 ? ids[k - 1] : null;
+        const nxtId = k < 3 ? ids[k + 1] : null;
+
+        // Step A: nxt = cur->next
+        const ptrsA = [];
+        if (prevId) ptrsA.push({ node: prevId, name: "prev", color: "#7c3aed", pos: "top" });
+        ptrsA.push({ node: curId, name: "cur", color: "#2563eb", pos: "top" });
+        if (nxtId) ptrsA.push({ node: nxtId, name: "nxt", color: "#d97706", pos: "bottom" });
+
+        frames.push({
+          nodes: basePos.map(n => n.id === curId ? { ...n, state: "active" } : n.id === nxtId ? { ...n, state: "warn" } : n),
+          links: makeLinks(k, "N1"),
+          ptrs: ptrsA,
+          vars: [
+            { name: "prev", val: labelOf(k - 1), tone: "purple" },
+            { name: "cur", val: labelOf(k), tone: "blue" },
+            { name: "nxt", val: labelOf(k + 1) + " (已备份)", tone: "amber" }
+          ],
+          codeLines: [4, 5],
+          explain: `第 ${k + 1} 轮 ① 保命备份：nxt = cur->next，先用 nxt 记住下一站（${labelOf(k + 1)}），防止等会儿 cur 掉头后失联！`
+        });
+
+        // Step B: cur->next = prev
+        frames.push({
+          nodes: basePos.map(n => n.id === curId ? { ...n, state: "new" } : n),
+          links: makeLinks(k + 1, "N1"),
+          ptrs: ptrsA,
+          vars: [
+            { name: "cur->next", val: labelOf(k - 1) + " (已掉头!)", tone: "purple" },
+            { name: "nxt", val: labelOf(k + 1), tone: "amber" }
+          ],
+          codeLines: [6],
+          tone: "good",
+          explain: `第 ${k + 1} 轮 ② 指针掉头：cur->next = prev！节点 ${vals[k]} 的箭头正式翻转，指向 ${labelOf(k - 1)}。`
+        });
+
+        // Step C: prev = cur; cur = nxt;
+        const ptrsC = [{ node: curId, name: "prev", color: "#7c3aed", pos: "top" }];
+        if (nxtId) ptrsC.push({ node: nxtId, name: "cur", color: "#2563eb", pos: "top" });
+        frames.push({
+          nodes: basePos.map(n => n.id === nxtId ? { ...n, state: "active" } : n),
+          links: makeLinks(k + 1, "N1"),
+          ptrs: ptrsC,
+          vars: [
+            { name: "prev", val: labelOf(k), tone: "purple" },
+            { name: "cur", val: labelOf(k + 1), tone: k === 3 ? "green" : "blue" }
+          ],
+          codeLines: [7, 8],
+          explain: k < 3
+            ? `第 ${k + 1} 轮 ③ 齐步右移：prev 移到 ${vals[k]}，cur 借助 nxt 移到 ${vals[k + 1]}，准备翻转下一个节点。`
+            : `第 4 轮 ③ 齐步右移：prev 停在 40，cur 变为 nullptr，while 循环结束！`
+        });
+      }
+
+      // Final: head->next = prev
+      frames.push({
+        nodes: basePos.map(n => n.id === "N4" ? { ...n, state: "new" } : n),
+        links: makeLinks(4, "N4"),
+        ptrs: [{ node: "N4", name: "prev(新头)", color: "#059669", pos: "bottom" }],
+        vars: [
+          { name: "head->next", val: "节点40 ✅", tone: "green" },
+          { name: "反转结果", val: "HEAD → 40 → 30 → 20 → 10 → NULL", tone: "green" }
+        ],
+        codeLines: [10],
+        tone: "good",
+        explain: "🎉 最后一步：head->next = prev！头结点重新接上新链表头 40，原地反转大功告成！空间复杂度 O(1)！",
+        tip: "📌 <strong>四行黄金循环：</strong><code>nxt = cur->next; cur->next = prev; prev = cur; cur = nxt;</code> 顺序一步都不能错！"
+      });
+
+      return frames;
+    }
+
+    function renderSvg(frame) {
+      const W = 710, H = 290;
+      const boxW = 92, boxH = 44, dataW = 54;
+      const map = {};
+      frame.nodes.forEach(n => { map[n.id] = n; });
+
+      let defs = `
+        <defs>
+          <marker id="ll-arr-gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="#475569"/>
+          </marker>
+          <marker id="ll-arr-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="#2563eb"/>
+          </marker>
+          <marker id="ll-arr-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="#059669"/>
+          </marker>
+          <marker id="ll-arr-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="#dc2626"/>
+          </marker>
+          <marker id="ll-arr-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="#7c3aed"/>
+          </marker>
+          <marker id="ll-arr-light" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="#94a3b8"/>
+          </marker>
+        </defs>`;
+
+      function markerFor(color) {
+        if (color === "#2563eb") return "url(#ll-arr-blue)";
+        if (color === "#059669") return "url(#ll-arr-green)";
+        if (color === "#dc2626" || color === "#f87171") return "url(#ll-arr-red)";
+        if (color === "#7c3aed") return "url(#ll-arr-purple)";
+        if (color === "#94a3b8" || color === "#cbd5e1") return "url(#ll-arr-light)";
+        return "url(#ll-arr-gray)";
+      }
+
+      let linksSvg = "";
+      (frame.links || []).forEach(lk => {
+        const a = map[lk.from];
+        if (!a) return;
+        const col = lk.color || "#475569";
+        const mk = markerFor(col);
+        const dash = lk.dashed ? 'stroke-dasharray="5,4"' : "";
+        const ax = a.x + dataW + (boxW - dataW) / 2;
+        const ay = a.y + boxH / 2;
+
+        if (lk.to === "NULL") {
+          const ex = a.x + boxW + 26;
+          linksSvg += `<line x1="${ax}" y1="${ay}" x2="${ex}" y2="${ay}" stroke="${col}" stroke-width="2.2" ${dash} marker-end="${mk}"/>`;
+          linksSvg += `<text x="${ex + 6}" y="${ay + 4}" font-family="monospace" font-size="12" font-weight="700" fill="${col}">NULL</text>`;
+          return;
+        }
+        if (lk.style === "revNull") {
+          const ex = a.x - 24;
+          linksSvg += `<path d="M ${ax} ${a.y + boxH} C ${ax} ${a.y + boxH + 26}, ${a.x - 10} ${a.y + boxH + 26}, ${ex} ${ay + 6}" fill="none" stroke="${col}" stroke-width="2.3" marker-end="${mk}"/>`;
+          linksSvg += `<text x="${ex - 34}" y="${ay + 10}" font-family="monospace" font-size="11.5" font-weight="800" fill="${col}">NULL</text>`;
+          return;
+        }
+        const b = map[lk.to];
+        if (!b) return;
+
+        if (lk.style === "selfLoop") {
+          linksSvg += `<path d="M ${ax} ${a.y + boxH} C ${ax + 48} ${a.y + boxH + 46}, ${a.x - 42} ${a.y + boxH + 46}, ${a.x - 2} ${ay}" fill="none" stroke="${col}" stroke-width="2.8" marker-end="${mk}"/>`;
+          linksSvg += `<text x="${a.x + 12}" y="${a.y + boxH + 34}" font-size="11.5" font-weight="800" fill="#dc2626">s->next = s (自环!)</text>`;
+          return;
+        }
+        if (lk.style === "broken") {
+          const mx = (ax + b.x) / 2;
+          const my = (ay + b.y + boxH / 2) / 2;
+          linksSvg += `<line x1="${ax}" y1="${ay}" x2="${b.x - 4}" y2="${b.y + boxH / 2}" stroke="#fca5a5" stroke-width="2" stroke-dasharray="5,5"/>`;
+          linksSvg += `<text x="${mx - 8}" y="${my + 4}" font-size="18" font-weight="900" fill="#dc2626">✖</text>`;
+          return;
+        }
+        if (lk.style === "curveUp") {
+          linksSvg += `<path d="M ${ax} ${ay} Q ${b.x - 18} ${ay}, ${b.x} ${b.y + boxH - 8}" fill="none" stroke="${col}" stroke-width="2.6" marker-end="${mk}"/>`;
+          return;
+        }
+        if (lk.style === "curveDown") {
+          linksSvg += `<path d="M ${ax} ${ay} Q ${ax + 6} ${b.y + 18}, ${b.x} ${b.y + 20}" fill="none" stroke="${col}" stroke-width="2.6" marker-end="${mk}"/>`;
+          return;
+        }
+        if (lk.style === "bypass") {
+          const mx = (ax + b.x) / 2;
+          linksSvg += `<path d="M ${ax} ${a.y} Q ${mx} ${a.y - 54}, ${b.x + 12} ${b.y - 2}" fill="none" stroke="${col}" stroke-width="2.6" marker-end="${mk}"/>`;
+          return;
+        }
+        if (lk.style === "reverse") {
+          const tx = b.x + boxW;
+          linksSvg += `<path d="M ${ax} ${a.y + boxH} C ${ax} ${a.y + boxH + 24}, ${tx + 10} ${b.y + boxH + 24}, ${tx + 2} ${b.y + boxH - 10}" fill="none" stroke="${col}" stroke-width="2.5" marker-end="${mk}"/>`;
+          return;
+        }
+        if (lk.style === "headToTail") {
+          linksSvg += `<path d="M ${ax} ${a.y} C ${ax + 40} 26, ${b.x + 10} 26, ${b.x + 28} ${b.y - 2}" fill="none" stroke="${col}" stroke-width="2.7" marker-end="${mk}"/>`;
+          return;
+        }
+
+        // Standard horizontal/straight arrow
+        linksSvg += `<line x1="${ax}" y1="${ay}" x2="${b.x - 2}" y2="${b.y + boxH / 2}" stroke="${col}" stroke-width="2.3" ${dash} marker-end="${mk}"/>`;
+      });
+
+      let nodesSvg = "";
+      frame.nodes.forEach(n => {
+        let fill = "#ffffff", stroke = "#334155", txt = "#0f172a", dash = "";
+        if (n.isHead) { fill = "#f1f5f9"; stroke = "#64748b"; txt = "#475569"; }
+        if (n.state === "active") { fill = "#eff6ff"; stroke = "#2563eb"; txt = "#1d4ed8"; }
+        if (n.state === "new") { fill = "#ecfdf5"; stroke = "#059669"; txt = "#047857"; }
+        if (n.state === "warn") { fill = "#fffbeb"; stroke = "#d97706"; txt = "#b45309"; }
+        if (n.state === "danger") { fill = "#fef2f2"; stroke = "#dc2626"; txt = "#b91c1c"; }
+        if (n.state === "lost") { fill = "#fef2f2"; stroke = "#ef4444"; txt = "#dc2626"; dash = 'stroke-dasharray="5,3"'; }
+
+        nodesSvg += `
+          <g>
+            <rect x="${n.x}" y="${n.y}" width="${boxW}" height="${boxH}" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="2.2" ${dash}/>
+            <line x1="${n.x + dataW}" y1="${n.y}" x2="${n.x + dataW}" y2="${n.y + boxH}" stroke="${stroke}" stroke-width="1.6" ${dash}/>
+            <text x="${n.x + dataW / 2}" y="${n.y + 27}" text-anchor="middle" font-family="monospace" font-size="${n.isHead ? 12 : 15}" font-weight="800" fill="${txt}">${escHtml(n.data)}</text>
+            <circle cx="${n.x + dataW + (boxW - dataW) / 2}" cy="${n.y + boxH / 2}" r="3.5" fill="${stroke}"/>
+            <text x="${n.x + dataW / 2}" y="${n.y + boxH + 13}" text-anchor="middle" font-size="10" fill="#94a3b8">${n.isHead ? "头结点" : "data"}</text>
+            <text x="${n.x + dataW + (boxW - dataW) / 2}" y="${n.y + boxH + 13}" text-anchor="middle" font-size="10" fill="#94a3b8">next</text>
+          </g>`;
+
+        if (n.badge) {
+          nodesSvg += `
+            <rect x="${n.x - 4}" y="${n.y - 24}" width="${boxW + 8}" height="19" rx="9" fill="#fee2e2" stroke="#f87171"/>
+            <text x="${n.x + boxW / 2}" y="${n.y - 11}" text-anchor="middle" font-size="10.5" font-weight="800" fill="#b91c1c">${escHtml(n.badge)}</text>`;
+        }
+      });
+
+      let ptrsSvg = "";
+      (frame.ptrs || []).forEach(p => {
+        const n = map[p.node];
+        if (!n) return;
+        const cx = n.x + boxW / 2;
+        if (p.pos === "top") {
+          const y0 = n.y - 44;
+          ptrsSvg += `
+            <rect x="${cx - 26}" y="${y0}" width="52" height="22" rx="6" fill="${p.color}"/>
+            <text x="${cx}" y="${y0 + 15}" text-anchor="middle" font-family="monospace" font-size="12" font-weight="800" fill="#fff">${escHtml(p.name)}</text>
+            <line x1="${cx}" y1="${y0 + 22}" x2="${cx}" y2="${n.y - 3}" stroke="${p.color}" stroke-width="2.2" marker-end="${markerFor(p.color)}"/>`;
+        } else {
+          const y0 = n.y + boxH + 34;
+          const bw = p.name.length > 4 ? 76 : 52;
+          ptrsSvg += `
+            <rect x="${cx - bw / 2}" y="${y0}" width="${bw}" height="22" rx="6" fill="${p.color}"/>
+            <text x="${cx}" y="${y0 + 15}" text-anchor="middle" font-family="monospace" font-size="11.5" font-weight="800" fill="#fff">${escHtml(p.name)}</text>
+            <line x1="${cx}" y1="${y0}" x2="${cx}" y2="${n.y + boxH + 16}" stroke="${p.color}" stroke-width="2.2" marker-end="${markerFor(p.color)}"/>`;
+        }
+      });
+
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${defs}${linksSvg}${nodesSvg}${ptrsSvg}</svg>`;
+    }
+
+    let currentMode = "insert_ok";
+    const stageEl = document.getElementById("llSvgStage");
+    const varsEl = document.getElementById("llVars");
+    const explainEl = document.getElementById("llExplain");
+    const codeEl = document.getElementById("llCode");
+    const codeTagEl = document.getElementById("llCodeTag");
+
+    const player = new FramePlayer("player-ll", (frame) => {
+      stageEl.innerHTML = renderSvg(frame);
+      renderVars(varsEl, frame.vars);
+      renderExplain(explainEl, frame);
+      renderCode(codeEl, CODES[currentMode], frame.codeLines, !!frame.dangerCode);
+    }, 1050);
+    players.ll = player;
+
+    function loadMode(mode) {
+      currentMode = mode;
+      const mapTag = {
+        insert_ok: "Insert_Correct.cpp",
+        insert_bad: "Insert_BugDemo.cpp",
+        delete: "Delete_3Steps.cpp",
+        reverse: "Reverse_3Ptrs.cpp"
+      };
+      codeTagEl.textContent = mapTag[mode];
+      document.querySelectorAll("#llModeGroup .btn").forEach(b => {
+        b.classList.toggle("active", b.dataset.mode === mode);
+      });
+      let frames = [];
+      if (mode === "insert_ok") frames = buildInsertOk();
+      else if (mode === "insert_bad") frames = buildInsertBad();
+      else if (mode === "delete") frames = buildDelete();
+      else frames = buildReverse();
+      player.setFrames(frames, false, 0);
+    }
+
+    document.querySelectorAll("#llModeGroup .btn").forEach(b => {
+      b.addEventListener("click", () => loadMode(b.dataset.mode));
+    });
+
+    loadMode("insert_ok");
+    return { player };
+  })();
+
+  /* ============================================================================
+   * 模块 2：循环队列环形槽（第 3 章）
+   * ============================================================================ */
+  const CQ = (function () {
+    const N = 6;
+    const CODE = [
+      "const int N = 6; // 故意留 1 格空位，最多存 5 个元素",
+      "int data[N], front = 0, rear = 0;",
+      "bool isEmpty() { return front == rear; }",
+      "bool isFull()  { return (rear + 1) % N == front; }",
+      "int size()     { return (rear - front + N) % N; }",
+      "bool enqueue(int x) {",
+      "    if ((rear + 1) % N == front) return false; // 队满拒绝",
+      "    data[rear] = x;            // 写入队尾槽位",
+      "    rear = (rear + 1) % N;     // 指针取模绕圈前进",
+      "    return true;",
+      "}",
+      "bool dequeue(int& out) {",
+      "    if (front == rear) return false; // 队空拒绝",
+      "    out = data[front];         // 取出队头元素",
+      "    front = (front + 1) % N;   // 队头取模绕圈前进",
+      "    return true;",
+      "}"
+    ];
+
+    let autoVal = 10;
+    const stageEl = document.getElementById("cqSvgStage");
+    const varsEl = document.getElementById("cqVars");
+    const explainEl = document.getElementById("cqExplain");
+    const dashEl = document.getElementById("cqDashboard");
+    const codeEl = document.getElementById("cqCode");
+    const inputEl = document.getElementById("cqInput");
+
+    function cloneState(s) {
+      return { arr: s.arr.slice(), front: s.front, rear: s.rear };
+    }
+
+    function makeFrame(state, opts) {
+      const { front, rear } = state;
+      const isEmpty = front === rear;
+      const isFull = (rear + 1) % N === front;
+      const len = (rear - front + N) % N;
+      return {
+        state: cloneState(state),
+        highlightSlot: opts.highlightSlot ?? -1,
+        highlightType: opts.highlightType || "",
+        codeLines: opts.codeLines || [],
+        dangerCode: !!opts.dangerCode,
+        tone: opts.tone || "info",
+        explain: opts.explain,
+        tip: opts.tip || "",
+        vars: [
+          { name: "front", val: String(front), tone: "blue" },
+          { name: "rear", val: String(rear), tone: "purple" },
+          { name: "(rear+1)%6", val: `${(rear + 1) % N}`, tone: isFull ? "red" : "" },
+          { name: "len", val: `${len} / 5`, tone: isFull ? "amber" : "green" },
+          ...(opts.extraVars || [])
+        ]
+      };
+    }
+
+    function recordEnqueue(state, x, frames) {
+      const s = cloneState(state);
+      const nextRear = (s.rear + 1) % N;
+      const isFull = nextRear === s.front;
+      if (isFull) {
+        frames.push(makeFrame(s, {
+          highlightSlot: s.rear,
+          highlightType: "full",
+          codeLines: [4, 7],
+          dangerCode: true,
+          tone: "danger",
+          extraVars: [{ name: "待入队 x", val: String(x), tone: "red" }],
+          explain: `❌ 尝试入队 ${x} 失败！(rear + 1) % 6 = (${s.rear} + 1) % 6 = ${nextRear} == front(${s.front})，队列已满！`,
+          tip: `💡 <strong>为什么下标 [${s.rear}] 看起来是空的却不让放？</strong>如果把 ${x} 塞进 [${s.rear}]，rear 就会前进一步变成 ${nextRear}，导致 <code>front == rear</code>，程序就分不清“队满”还是“队空”了！`
+        }));
+        return s;
+      }
+      frames.push(makeFrame(s, {
+        highlightSlot: s.rear,
+        highlightType: "check",
+        codeLines: [6, 7],
+        extraVars: [{ name: "待入队 x", val: String(x), tone: "blue" }],
+        explain: `准备入队 ${x}：先检查 (rear + 1) % 6 = ${nextRear} ≠ front(${s.front})，队未满，可以写入！`
+      }));
+      s.arr[s.rear] = x;
+      frames.push(makeFrame(s, {
+        highlightSlot: s.rear,
+        highlightType: "enq",
+        codeLines: [8],
+        tone: "good",
+        extraVars: [{ name: `data[${s.rear}]`, val: String(x), tone: "green" }],
+        explain: `执行 data[${s.rear}] = ${x}：将元素 ${x} 放入 rear 指向的槽位 [${s.rear}]。`
+      }));
+      const oldRear = s.rear;
+      s.rear = nextRear;
+      const wrapped = oldRear === N - 1 && s.rear === 0;
+      frames.push(makeFrame(s, {
+        highlightSlot: s.rear,
+        highlightType: wrapped ? "wrap" : "move",
+        codeLines: [9],
+        tone: wrapped ? "good" : "info",
+        extraVars: [{ name: "rear 更新", val: `${oldRear} → ${s.rear}` + (wrapped ? " (绕回0!)" : ""), tone: wrapped ? "green" : "purple" }],
+        explain: wrapped
+          ? `🎉 绕圈成功！rear = (5 + 1) % 6 = 0！队尾指针顺滑绕回数组开头下标 0，复用前面已出队的空槽！`
+          : `执行 rear = (${oldRear} + 1) % 6 = ${s.rear}，队尾指针顺时针前进一格。`,
+        tip: wrapped ? "💡 <strong>这就是循环队列的精髓：</strong>用取模 <code>% N</code> 把直线数组首尾相连，彻底解决普通数组队列的「假溢出」问题！" : ""
+      }));
+      return s;
+    }
+
+    function recordDequeue(state, frames) {
+      const s = cloneState(state);
+      if (s.front === s.rear) {
+        frames.push(makeFrame(s, {
+          highlightSlot: s.front,
+          highlightType: "full",
+          codeLines: [3, 13],
+          dangerCode: true,
+          tone: "danger",
+          explain: `❌ 出队失败！front(${s.front}) == rear(${s.rear})，当前队列为空，没有元素可出队。`
+        }));
+        return s;
+      }
+      const val = s.arr[s.front];
+      frames.push(makeFrame(s, {
+        highlightSlot: s.front,
+        highlightType: "deq",
+        codeLines: [13, 14],
+        tone: "warn",
+        extraVars: [{ name: "出队 out", val: String(val), tone: "amber" }],
+        explain: `front(${s.front}) ≠ rear(${s.rear}) 队非空，读取队头元素 out = data[${s.front}] = ${val}。`
+      }));
+      const oldFront = s.front;
+      s.arr[oldFront] = null;
+      s.front = (s.front + 1) % N;
+      const wrapped = oldFront === N - 1 && s.front === 0;
+      frames.push(makeFrame(s, {
+        highlightSlot: s.front,
+        highlightType: wrapped ? "wrap" : "move",
+        codeLines: [15],
+        extraVars: [{ name: "front 更新", val: `${oldFront} → ${s.front}`, tone: "blue" }],
+        explain: `执行 front = (${oldFront} + 1) % 6 = ${s.front}。原槽位 [${oldFront}] 逻辑释放，后续可被 rear 绕圈复用！`
+      }));
+      return s;
+    }
+
+    function renderRingSvg(frame) {
+      const { arr, front, rear } = frame.state;
+      const isFull = (rear + 1) % N === front;
+      const cx = 250, cy = 165, R_OUT = 114, R_IN = 56;
+      const W = 500, H = 330;
+
+      let sectors = "";
+      let labels = "";
+      const occupied = new Set();
+      let idx = front;
+      while (idx !== rear) {
+        occupied.add(idx);
+        idx = (idx + 1) % N;
+      }
+
+      for (let i = 0; i < N; i++) {
+        const a0 = (-90 + i * 60) * Math.PI / 180;
+        const a1 = (-90 + (i + 1) * 60) * Math.PI / 180;
+        const am = (a0 + a1) / 2;
+
+        const x1 = cx + R_OUT * Math.cos(a0), y1 = cy + R_OUT * Math.sin(a0);
+        const x2 = cx + R_OUT * Math.cos(a1), y2 = cy + R_OUT * Math.sin(a1);
+        const x3 = cx + R_IN * Math.cos(a1), y3 = cy + R_IN * Math.sin(a1);
+        const x4 = cx + R_IN * Math.cos(a0), y4 = cy + R_IN * Math.sin(a0);
+
+        const d = `M ${x1} ${y1} A ${R_OUT} ${R_OUT} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${R_IN} ${R_IN} 0 0 0 ${x4} ${y4} Z`;
+
+        let fill = "#f8fafc", stroke = "#94a3b8", sw = 2;
+        if (occupied.has(i)) { fill = "#dbeafe"; stroke = "#3b82f6"; }
+        if (isFull && i === rear) { fill = "#fef3c7"; stroke = "#d97706"; }
+        if (frame.highlightSlot === i) {
+          sw = 3.2;
+          if (frame.highlightType === "enq" || frame.highlightType === "wrap") { fill = "#bbf7d0"; stroke = "#059669"; }
+          else if (frame.highlightType === "deq") { fill = "#fde68a"; stroke = "#d97706"; }
+          else if (frame.highlightType === "full") { fill = "#fecaca"; stroke = "#dc2626"; }
+          else if (frame.highlightType === "check") { fill = "#e0e7ff"; stroke = "#2563eb"; }
+        }
+
+        sectors += `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+
+        // Value inside sector
+        const vr = (R_OUT + R_IN) / 2;
+        const vx = cx + vr * Math.cos(am);
+        const vy = cy + vr * Math.sin(am);
+        const hasVal = occupied.has(i) && arr[i] !== null;
+        if (hasVal) {
+          labels += `<text x="${vx}" y="${vy + 6}" text-anchor="middle" font-family="monospace" font-size="18" font-weight="800" fill="#1e3a8a">${escHtml(arr[i])}</text>`;
+        } else if (isFull && i === rear) {
+          labels += `<text x="${vx}" y="${vy + 2}" text-anchor="middle" font-size="11" font-weight="800" fill="#b45309">预留空位</text>`;
+          labels += `<text x="${vx}" y="${vy + 15}" text-anchor="middle" font-size="9.5" fill="#92400e">不可写入</text>`;
+        } else {
+          labels += `<text x="${vx}" y="${vy + 5}" text-anchor="middle" font-size="12" fill="#94a3b8">空</text>`;
+        }
+
+        // Index badge near outer rim
+        const ir = R_OUT + 17;
+        const ix = cx + ir * Math.cos(am);
+        const iy = cy + ir * Math.sin(am);
+        labels += `<text x="${ix}" y="${iy + 4}" text-anchor="middle" font-family="monospace" font-size="12.5" font-weight="800" fill="#475569">[${i}]</text>`;
+      }
+
+      // Pointer badges for front and rear
+      function drawPtr(slotIdx, text, color, offsetDeg) {
+        const am = (-90 + slotIdx * 60 + 30 + offsetDeg) * Math.PI / 180;
+        const px = cx + (R_OUT + 45) * Math.cos(am);
+        const py = cy + (R_OUT + 45) * Math.sin(am);
+        const tx = cx + (R_OUT + 2) * Math.cos(am);
+        const ty = cy + (R_OUT + 2) * Math.sin(am);
+        const bw = 48;
+        return `
+          <line x1="${px}" y1="${py}" x2="${tx}" y2="${ty}" stroke="${color}" stroke-width="2.2"/>
+          <circle cx="${tx}" cy="${ty}" r="4" fill="${color}"/>
+          <rect x="${px - bw / 2}" y="${py - 11}" width="${bw}" height="22" rx="6" fill="${color}"/>
+          <text x="${px}" y="${py + 4}" text-anchor="middle" font-family="monospace" font-size="11.5" font-weight="800" fill="#fff">${text}</text>`;
+      }
+
+      let ptrs = "";
+      if (front === rear) {
+        ptrs += drawPtr(front, "front", "#2563eb", -12);
+        ptrs += drawPtr(rear, "rear", "#7c3aed", 12);
+      } else {
+        ptrs += drawPtr(front, "front", "#2563eb", 0);
+        ptrs += drawPtr(rear, "rear", "#7c3aed", 0);
+      }
+
+      const len = (rear - front + N) % N;
+      const centerText = `
+        <circle cx="${cx}" cy="${cy}" r="${R_IN - 2}" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+        <text x="${cx}" y="${cy - 8}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#64748b">当前元素数</text>
+        <text x="${cx}" y="${cy + 16}" text-anchor="middle" font-family="monospace" font-size="22" font-weight="800" fill="${isFull ? '#dc2626' : '#2563eb'}">${len} / 5</text>
+        <text x="${cx}" y="${cy + 34}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${len === 0 ? '#d97706' : isFull ? '#dc2626' : '#059669'}">${len === 0 ? '队空 EMPTY' : isFull ? '队满 FULL!' : '可入可出'}</text>
+      `;
+
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${sectors}${labels}${ptrs}${centerText}</svg>`;
+    }
+
+    function renderDashboard(frame) {
+      const { front, rear } = frame.state;
+      const isEmpty = front === rear;
+      const isFull = (rear + 1) % N === front;
+      const len = (rear - front + N) % N;
+      dashEl.innerHTML = `
+        <div class="cq-stat">
+          <div class="cq-stat-lbl">front (队头下标)</div>
+          <div class="cq-stat-val" style="color:#2563eb">${front}</div>
+        </div>
+        <div class="cq-stat">
+          <div class="cq-stat-lbl">rear (下一入队位)</div>
+          <div class="cq-stat-val" style="color:#7c3aed">${rear}</div>
+        </div>
+        <div class="cq-stat ${isEmpty ? 'is-true-amber' : ''}">
+          <div class="cq-stat-lbl">队空: front == rear</div>
+          <div class="cq-stat-val">${isEmpty ? 'true (空)' : 'false'}</div>
+        </div>
+        <div class="cq-stat ${isFull ? 'is-true-danger' : ''}">
+          <div class="cq-stat-lbl">队满: (rear+1)%6 == front</div>
+          <div class="cq-stat-val">${isFull ? 'true (满!)' : 'false'}</div>
+        </div>
+        <div class="cq-stat full-span is-true-green">
+          <div class="cq-stat-lbl">当前队列长度公式: (rear - front + 6) % 6</div>
+          <div class="cq-stat-val">(${rear} - ${front} + 6) % 6 = ${len}</div>
+        </div>
+      `;
+    }
+
+    let currentFrameState = { arr: [null, null, null, null, null, null], front: 0, rear: 0 };
+
+    const player = new FramePlayer("player-cq", (frame) => {
+      currentFrameState = cloneState(frame.state);
+      stageEl.innerHTML = renderRingSvg(frame);
+      renderVars(varsEl, frame.vars);
+      renderExplain(explainEl, frame);
+      renderDashboard(frame);
+      renderCode(codeEl, CODE, frame.codeLines, !!frame.dangerCode);
+    }, 800);
+    players.cq = player;
+
+    function initEmpty() {
+      const s = { arr: [null, null, null, null, null, null], front: 0, rear: 0 };
+      autoVal = 10;
+      inputEl.value = autoVal;
+      player.setFrames([makeFrame(s, {
+        codeLines: [1, 2],
+        explain: "循环队列已初始化：front = 0, rear = 0，队列为空。点击上方「入队」「出队」或「一键演示绕圈」亲自观察取模绕回！",
+        tip: "💡 <strong>核心设计：</strong>数组开了 6 格，但最多只存 5 个元素——故意留 1 格空位，用来区分 <code>front == rear</code>（队空）和 <code>(rear+1)%6 == front</code>（队满）。"
+      })], false, 0);
+    }
+
+    document.getElementById("cqBtnEnq").addEventListener("click", () => {
+      const val = parseInt(inputEl.value, 10);
+      const x = isNaN(val) ? autoVal : Math.max(-99, Math.min(999, val));
+      const frames = [makeFrame(currentFrameState, {
+        codeLines: [6],
+        explain: `当前队列状态，即将执行 enqueue(${x})。`
+      })];
+      recordEnqueue(currentFrameState, x, frames);
+      autoVal = x + 10;
+      if (autoVal > 99) autoVal = 10;
+      inputEl.value = autoVal;
+      player.setFrames(frames, true, 0);
+    });
+
+    document.getElementById("cqBtnDeq").addEventListener("click", () => {
+      const frames = [makeFrame(currentFrameState, {
+        codeLines: [12],
+        explain: "当前队列状态，即将执行 dequeue()。"
+      })];
+      recordDequeue(currentFrameState, frames);
+      player.setFrames(frames, true, 0);
+    });
+
+    document.getElementById("cqBtnClear").addEventListener("click", () => initEmpty());
+
+    document.getElementById("cqBtnWrap").addEventListener("click", () => {
+      let s = { arr: [null, null, null, null, null, null], front: 0, rear: 0 };
+      const frames = [makeFrame(s, {
+        codeLines: [1, 2],
+        explain: "🎬 绕圈演示开始！我们将依次：入队 4 个(10,20,30,40) → 出队 3 个 → 再入队 4 个(50,60,70,80)，亲眼见证 rear 从 5 绕回 0 并触发队满！"
+      })];
+      for (const v of [10, 20, 30, 40]) s = recordEnqueue(s, v, frames);
+      for (let i = 0; i < 3; i++) s = recordDequeue(s, frames);
+      for (const v of [50, 60, 70, 80]) s = recordEnqueue(s, v, frames);
+      // One extra enqueue to demonstrate full rejection!
+      s = recordEnqueue(s, 90, frames);
+      player.setFrames(frames, true, 0);
+    });
+
+    initEmpty();
+    return { player };
+  })();
+
+  /* ============================================================================
+   * 模块 3：二叉树遍历与调用栈（第 4 章）
+   * ============================================================================ */
+  const BT = (function () {
+    // 1(2(4,5), 3(_,6(7,_)))
+    const TREE = {
+      1: { val: 1, left: 2, right: 3, x: 260, y: 48 },
+      2: { val: 2, left: 4, right: 5, x: 145, y: 124 },
+      3: { val: 3, left: null, right: 6, x: 375, y: 124 },
+      4: { val: 4, left: null, right: null, x: 85, y: 204 },
+      5: { val: 5, left: null, right: null, x: 205, y: 204 },
+      6: { val: 6, left: 7, right: null, x: 435, y: 204 },
+      7: { val: 7, left: null, right: null, x: 375, y: 278 }
+    };
+
+    const CODES = {
+      pre: [
+        "void preorder(TreeNode* root) {",
+        "    if (root == nullptr) return; // 空节点直接返回",
+        "    cout << root->val << ' ';    // ① 先访问根节点",
+        "    preorder(root->left);        // ② 递归遍历左子树",
+        "    preorder(root->right);       // ③ 递归遍历右子树",
+        "}"
+      ],
+      in: [
+        "void inorder(TreeNode* root) {",
+        "    if (root == nullptr) return; // 空节点直接返回",
+        "    inorder(root->left);         // ① 先递归左子树",
+        "    cout << root->val << ' ';    // ② 再访问根节点",
+        "    inorder(root->right);        // ③ 最后递归右子树",
+        "}"
+      ],
+      post: [
+        "void postorder(TreeNode* root) {",
+        "    if (root == nullptr) return; // 空节点直接返回",
+        "    postorder(root->left);       // ① 先递归左子树",
+        "    postorder(root->right);      // ② 再递归右子树",
+        "    cout << root->val << ' ';    // ③ 左右都完才访问根",
+        "}"
+      ],
+      level: [
+        "void levelOrder(TreeNode* root) {",
+        "    queue<TreeNode*> q; q.push(root);",
+        "    while (!q.empty()) {",
+        "        TreeNode* cur = q.front(); q.pop(); // 队头出队",
+        "        cout << cur->val << ' ';            // 访问当前节点",
+        "        if (cur->left)  q.push(cur->left);  // 左孩子入队",
+        "        if (cur->right) q.push(cur->right); // 右孩子入队",
+        "    }",
+        "}"
+      ]
+    };
+
+    function buildRecursive(mode) {
+      const fnName = mode === "pre" ? "preorder" : mode === "in" ? "inorder" : "postorder";
+      const frames = [];
+      const stack = [];
+      const out = [];
+      const done = new Set();
+
+      function snap(activeNode, codeLines, explain, tip, tone) {
+        const states = {};
+        Object.keys(TREE).forEach(k => states[k] = "unvisited");
+        stack.forEach(sf => { if (sf.node !== null) states[sf.node] = "stacked"; });
+        done.forEach(id => states[id] = "done");
+        if (activeNode !== null) states[activeNode] = "active";
+        frames.push({
+          mode,
+          states,
+          activeNode,
+          stack: stack.map(x => ({ ...x })),
+          output: out.slice(),
+          orderMap: Object.fromEntries(out.map((v, i) => [v, i + 1])),
+          codeLines,
+          explain,
+          tip: tip || "",
+          tone: tone || "info"
+        });
+      }
+
+      snap(null, [1], `准备从根节点 1 开始执行 ${fnName}(1)。观察右侧递归调用栈如何「一路压栈深入，遇到空节点回弹」！`,
+        "💡 <strong>递归不是魔法：</strong>每次调用自己，系统都会把当前函数暂停并压入调用栈，等子树算完再弹回来接着往下走。");
+
+      function dfs(id) {
+        if (id === null) {
+          stack.push({ node: null, label: `${fnName}(NULL)`, stage: "触底返回" });
+          snap(null, [2], `进入 ${fnName}(nullptr)：命中递归出口，立即 return 退回上一层调用！`, "", "warn");
+          stack.pop();
+          return;
+        }
+        const n = TREE[id];
+        stack.push({ node: id, label: `${fnName}(${id})`, stage: "刚入栈" });
+        snap(id, [1, 2], `压栈进入 ${fnName}(${id})，节点非空，准备按顺序执行。`);
+
+        if (mode === "pre") {
+          stack[stack.length - 1].stage = "① 输出根";
+          out.push(id);
+          done.add(id);
+          snap(id, [3], `✅ 前序 ① 访问并输出根节点 ${id}！（当前输出：[${out.join(", ")}]）`, "", "good");
+
+          stack[stack.length - 1].stage = "② 等左子树";
+          snap(id, [4], `节点 ${id} 暂停在栈中，向下递归左孩子 ${n.left ?? "NULL"}。`);
+          dfs(n.left);
+
+          stack[stack.length - 1].stage = "③ 等右子树";
+          snap(id, [5], `回到 ${fnName}(${id})！左子树已完成，现在递归右孩子 ${n.right ?? "NULL"}。`);
+          dfs(n.right);
+        } else if (mode === "in") {
+          stack[stack.length - 1].stage = "① 等左子树";
+          snap(id, [3], `中序必须先走左边！节点 ${id} 先按兵不动挂在栈里，递归左孩子 ${n.left ?? "NULL"}。`);
+          dfs(n.left);
+
+          stack[stack.length - 1].stage = "② 输出根";
+          out.push(id);
+          done.add(id);
+          snap(id, [4], `✅ 回到 ${fnName}(${id})，左子树已全部完成！中序 ② 输出根节点 ${id}。`,
+            id === 3 ? "💡 注意节点 3 没有左孩子，触碰 NULL 立刻返回，所以先输出 3 再去右子树 6！" : "", "good");
+
+          stack[stack.length - 1].stage = "③ 等右子树";
+          snap(id, [5], `节点 ${id} 输出完毕，继续递归它的右孩子 ${n.right ?? "NULL"}。`);
+          dfs(n.right);
+        } else {
+          stack[stack.length - 1].stage = "① 等左子树";
+          snap(id, [3], `后序要等左右都完事！节点 ${id} 挂在栈中，先递归左孩子 ${n.left ?? "NULL"}。`);
+          dfs(n.left);
+
+          stack[stack.length - 1].stage = "② 等右子树";
+          snap(id, [4], `回到 ${fnName}(${id})，左子树完了但还不能输出自己！继续递归右孩子 ${n.right ?? "NULL"}。`);
+          dfs(n.right);
+
+          stack[stack.length - 1].stage = "③ 输出根";
+          out.push(id);
+          done.add(id);
+          snap(id, [5], `✅ 再次回到 ${fnName}(${id})，左右子树均已完毕！后序 ③ 输出根节点 ${id}。`,
+            id === 1 ? "💡 根节点 1 是第一个压栈、最后一个出栈输出的——这就是后序遍历最适合做「销毁整棵树 / 计算子树高度」的原因！" : "", "good");
+        }
+
+        stack[stack.length - 1].stage = "结束出栈";
+        snap(id, [6], `${fnName}(${id}) 所有语句执行完毕，从调用栈弹出！`);
+        stack.pop();
+      }
+
+      dfs(1);
+      snap(null, [6], `🎉 遍历全部完成！最终序列：[${out.join(" → ")}]，调用栈已清空。`, "", "good");
+      return frames;
+    }
+
+    function buildLevel() {
+      const frames = [];
+      const q = [];
+      const out = [];
+      const done = new Set();
+
+      function snap(activeNode, codeLines, explain, tip, tone) {
+        const states = {};
+        Object.keys(TREE).forEach(k => states[k] = "unvisited");
+        q.forEach(id => states[id] = "stacked");
+        done.forEach(id => states[id] = "done");
+        if (activeNode !== null) states[activeNode] = "active";
+        frames.push({
+          mode: "level",
+          states,
+          activeNode,
+          queue: q.slice(),
+          output: out.slice(),
+          orderMap: Object.fromEntries(out.map((v, i) => [v, i + 1])),
+          codeLines,
+          explain,
+          tip: tip || "",
+          tone: tone || "info"
+        });
+      }
+
+      q.push(1);
+      snap(1, [2], "层序遍历不用递归，而是借助 FIFO 队列！先把根节点 1 入队。",
+        "💡 <strong>为什么队列能按层遍历？</strong>先入先出保证上一层的节点一定先出队，它们把下一层的孩子排在队尾，天然实现一层一层扫过去！");
+
+      while (q.length > 0) {
+        const cur = q.shift();
+        out.push(cur);
+        done.add(cur);
+        snap(cur, [4, 5], `队头 ${cur} 出队并输出！当前结果：[${out.join(", ")}]`, "", "good");
+        const n = TREE[cur];
+        if (n.left) {
+          q.push(n.left);
+          snap(cur, [6], `节点 ${cur} 有左孩子 ${n.left}，将其加入队尾等待下一层处理。`);
+        }
+        if (n.right) {
+          q.push(n.right);
+          snap(cur, [7], `节点 ${cur} 有右孩子 ${n.right}，将其加入队尾。`);
+        }
+      }
+
+      snap(null, [8], `🎉 队列为空，层序遍历完成！最终按层输出：[${out.join(" → ")}]。`, "", "good");
+      return frames;
+    }
+
+    function renderTreeSvg(frame) {
+      const W = 520, H = 320;
+      let edges = "";
+      Object.values(TREE).forEach(n => {
+        [n.left, n.right].forEach(chId => {
+          if (!chId) return;
+          const ch = TREE[chId];
+          const activeEdge = frame.activeNode === chId || frame.activeNode === n.val;
+          edges += `<line x1="${n.x}" y1="${n.y}" x2="${ch.x}" y2="${ch.y}" stroke="${activeEdge ? '#60a5fa' : '#cbd5e1'}" stroke-width="${activeEdge ? 3 : 2.2}"/>`;
+        });
+      });
+
+      let nodes = "";
+      Object.values(TREE).forEach(n => {
+        const st = frame.states[n.val];
+        let fill = "#ffffff", stroke = "#94a3b8", txt = "#334155", sw = 2.4;
+        if (st === "stacked") { fill = "#fffbeb"; stroke = "#d97706"; txt = "#b45309"; sw = 2.8; }
+        if (st === "done") { fill = "#ecfdf5"; stroke = "#059669"; txt = "#047857"; sw = 2.8; }
+        if (st === "active") { fill = "#2563eb"; stroke = "#1d4ed8"; txt = "#ffffff"; sw = 3.2; }
+
+        nodes += `
+          <g>
+            ${st === "active" ? `<circle cx="${n.x}" cy="${n.y}" r="27" fill="rgba(37,99,235,0.16)"/>` : ""}
+            <circle cx="${n.x}" cy="${n.y}" r="21" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>
+            <text x="${n.x}" y="${n.y + 6}" text-anchor="middle" font-family="monospace" font-size="16" font-weight="800" fill="${txt}">${n.val}</text>
+          </g>`;
+
+        const ord = frame.orderMap[n.val];
+        if (ord) {
+          nodes += `
+            <circle cx="${n.x + 19}" cy="${n.y - 17}" r="10" fill="#059669"/>
+            <text x="${n.x + 19}" y="${n.y - 13.5}" text-anchor="middle" font-family="monospace" font-size="10" font-weight="800" fill="#fff">#${ord}</text>`;
+        }
+      });
+
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${edges}${nodes}</svg>`;
+    }
+
+    let currentMode = "pre";
+    const stageEl = document.getElementById("btSvgStage");
+    const outEl = document.getElementById("btOutput");
+    const explainEl = document.getElementById("btExplain");
+    const auxTitleEl = document.getElementById("btAuxTitle");
+    const auxCountEl = document.getElementById("btAuxCount");
+    const auxBodyEl = document.getElementById("btAuxBody");
+    const codeEl = document.getElementById("btCode");
+    const codeTagEl = document.getElementById("btCodeTag");
+
+    const player = new FramePlayer("player-bt", (frame) => {
+      stageEl.innerHTML = renderTreeSvg(frame);
+      if (frame.output.length === 0) {
+        outEl.innerHTML = '<span class="empty-hint">尚未输出任何节点…</span>';
+      } else {
+        outEl.innerHTML = frame.output.map((v, i) =>
+          `<div class="seq-node${i === frame.output.length - 1 ? " latest" : ""}">${v}</div>`
+        ).join("");
+      }
+
+      if (frame.mode === "level") {
+        auxTitleEl.textContent = "📥 层序遍历队列（左头出 → 右尾入）";
+        auxCountEl.textContent = `队内 ${frame.queue.length} 个`;
+        if (frame.queue.length === 0) {
+          auxBodyEl.innerHTML = '<div class="aux-queue"><span class="empty-hint">队列为空</span></div>';
+        } else {
+          auxBodyEl.innerHTML = `<div class="aux-queue">${frame.queue.map((v, i) =>
+            `<div class="q-item${i === 0 ? " head" : ""}">${v}</div>`
+          ).join("")}</div>`;
+        }
+      } else {
+        auxTitleEl.textContent = "📚 模拟系统递归调用栈（栈顶在上）";
+        auxCountEl.textContent = `栈深 ${frame.stack.length}`;
+        if (frame.stack.length === 0) {
+          auxBodyEl.innerHTML = '<div class="aux-stack"><span class="empty-hint" style="text-align:center">调用栈为空</span></div>';
+        } else {
+          auxBodyEl.innerHTML = `<div class="aux-stack">${frame.stack.map((sf, i) =>
+            `<div class="stack-frame${i === frame.stack.length - 1 ? " top" : ""}"><span>${escHtml(sf.label)}</span><span class="stack-badge">${escHtml(sf.stage)}</span></div>`
+          ).join("")}</div>`;
+        }
+      }
+
+      renderExplain(explainEl, frame);
+      renderCode(codeEl, CODES[frame.mode], frame.codeLines, false);
+    }, 820);
+    players.bt = player;
+
+    function loadMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll("#btModeGroup .btn").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
+      const tagMap = { pre: "Preorder.cpp", in: "Inorder.cpp", post: "Postorder.cpp", level: "LevelOrder_BFS.cpp" };
+      codeTagEl.textContent = tagMap[mode];
+      const frames = mode === "level" ? buildLevel() : buildRecursive(mode);
+      player.setFrames(frames, false, 0);
+    }
+
+    document.querySelectorAll("#btModeGroup .btn").forEach(b => b.addEventListener("click", () => loadMode(b.dataset.mode)));
+    loadMode("pre");
+    return { player };
+  })();
+
+  /* ============================================================================
+   * 模块 4：图算法演示器（第 5 章）
+   * ============================================================================ */
+  const GR = (function () {
+    const NODES = [
+      { id: 0, x: 74, y: 155 },
+      { id: 1, x: 205, y: 58 },
+      { id: 2, x: 205, y: 252 },
+      { id: 3, x: 350, y: 58 },
+      { id: 4, x: 350, y: 252 },
+      { id: 5, x: 478, y: 155 }
+    ];
+    const EDGES = [
+      { u: 0, v: 1, w: 4 },
+      { u: 0, v: 2, w: 2 },
+      { u: 1, v: 2, w: 1 },
+      { u: 1, v: 3, w: 5 },
+      { u: 2, v: 3, w: 7 },
+      { u: 2, v: 4, w: 10 },
+      { u: 3, v: 4, w: 2 },
+      { u: 3, v: 5, w: 6 },
+      { u: 4, v: 5, w: 2 }
+    ];
+
+    function buildAdj() {
+      const adj = Array.from({ length: 6 }, () => []);
+      EDGES.forEach(e => {
+        adj[e.u].push({ to: e.v, w: e.w });
+        adj[e.v].push({ to: e.u, w: e.w });
+      });
+      adj.forEach(list => list.sort((a, b) => a.to - b.to));
+      return adj;
+    }
+    const ADJ = buildAdj();
+
+    const CODES = {
+      bfs: [
+        "void BFS(int start) {",
+        "    queue<int> q;",
+        "    visited[start] = true; // ✅ 入队前立刻标记！",
+        "    q.push(start);",
+        "    while (!q.empty()) {",
+        "        int u = q.front(); q.pop();",
+        "        for (int v : adj[u]) {",
+        "            if (!visited[v]) {",
+        "                visited[v] = true; // ✅ 立刻标蓝防重复入队！",
+        "                q.push(v);",
+        "            }",
+        "        }",
+        "    }",
+        "}"
+      ],
+      dfs: [
+        "void DFS(int u) {",
+        "    visited[u] = true;  // 标记已访问，防在环里无限绕圈",
+        "    order.push_back(u);",
+        "    for (int v : adj[u]) {",
+        "        if (!visited[v]) {",
+        "            DFS(v);     // 一条路扎到底！",
+        "        }",
+        "    }",
+        "} // 邻居全探完，回溯到上一层"
+      ],
+      dijkstra: [
+        "dist[start] = 0; // 其余顶点初始化为 ∞",
+        "for (int k = 0; k < n; k++) {",
+        "    int u = 未确定顶点中 dist 最小者;",
+        "    visited[u] = true; // ✅ 顶点 u 最短路永久锁定！",
+        "    for (auto [v, w] : adj[u]) {",
+        "        if (!visited[v] && dist[u] + w < dist[v]) {",
+        "            dist[v] = dist[u] + w; // ✨ 松弛成功！找到更近的路",
+        "            prev[v] = u;",
+        "        }",
+        "    }",
+        "}"
+      ]
+    };
+
+    function edgeKey(a, b) {
+      return a < b ? `${a}-${b}` : `${b}-${a}`;
+    }
+
+    function buildBFS(start) {
+      const frames = [];
+      const visited = Array(6).fill(false);
+      const finished = Array(6).fill(false);
+      const q = [];
+      const order = [];
+      const treeEdges = new Set();
+
+      function snap(opts) {
+        const nodeStates = {};
+        for (let i = 0; i < 6; i++) {
+          if (opts.cur === i) nodeStates[i] = "active";
+          else if (finished[i]) nodeStates[i] = "done";
+          else if (visited[i]) nodeStates[i] = "queued";
+          else nodeStates[i] = "unvisited";
+        }
+        frames.push({
+          mode: "bfs",
+          nodeStates,
+          checkEdge: opts.checkEdge || null,
+          checkEdgeType: opts.checkEdgeType || "",
+          treeEdges: new Set(treeEdges),
+          queue: q.slice(),
+          visited: visited.slice(),
+          order: order.slice(),
+          codeLines: opts.codeLines,
+          explain: opts.explain,
+          tip: opts.tip || "",
+          tone: opts.tone || "info",
+          vars: [
+            { name: "当前 u", val: opts.cur !== undefined && opts.cur !== null ? String(opts.cur) : "-", tone: "blue" },
+            { name: "已访问数", val: `${visited.filter(Boolean).length} / 6`, tone: "green" },
+            { name: "BFS 序列", val: order.length ? order.join(" → ") : "空" }
+          ]
+        });
+      }
+
+      visited[start] = true;
+      q.push(start);
+      snap({
+        cur: start, codeLines: [3, 4], tone: "good",
+        explain: `起点 ${start} 入队，并立刻将 visited[${start}] 标为 true（蓝色）！`,
+        tip: "💡 <strong>BFS 铁律：</strong>必须在「入队时」就标记 visited，绝不能等到出队再标！等会经过环边时你会亲眼看到原因。"
+      });
+
+      while (q.length > 0) {
+        const u = q.shift();
+        order.push(u);
+        snap({ cur: u, codeLines: [5, 6], explain: `队头顶点 ${u} 出队，准备检查它的所有相邻顶点：[${ADJ[u].map(e => e.to).join(", ")}]。` });
+        for (const { to: v } of ADJ[u]) {
+          if (!visited[v]) {
+            visited[v] = true;
+            q.push(v);
+            treeEdges.add(edgeKey(u, v));
+            snap({
+              cur: u, checkEdge: edgeKey(u, v), checkEdgeType: "ok", codeLines: [8, 9, 10], tone: "good",
+              explain: `发现未访问邻居 ${v}！立刻标记 visited[${v}] = true（变蓝）并将其压入队尾。`
+            });
+          } else {
+            snap({
+              cur: u, checkEdge: edgeKey(u, v), checkEdgeType: "skip", codeLines: [8], tone: "warn",
+              explain: `检查邻居 ${v}：它早就是已访问状态（visited[${v}] == true），直接跳过！`,
+              tip: !finished[v]
+                ? `🚨 <strong>关键避坑点！</strong>顶点 ${v} 目前还在队列里没出队呢！幸好当初入队时就提前标了 visited[${v}]=true，否则这里会把它重复入队两次！`
+                : ""
+            });
+          }
+        }
+        finished[u] = true;
+      }
+
+      snap({
+        cur: null, codeLines: [14], tone: "good",
+        explain: `🎉 队列为空，BFS 广度优先遍历完成！按层次扩散顺序：[${order.join(" → ")}]。`
+      });
+      return frames;
+    }
+
+    function buildDFS(start) {
+      const frames = [];
+      const visited = Array(6).fill(false);
+      const finished = Array(6).fill(false);
+      const stack = [];
+      const order = [];
+      const treeEdges = new Set();
+
+      function snap(opts) {
+        const nodeStates = {};
+        for (let i = 0; i < 6; i++) {
+          if (opts.cur === i) nodeStates[i] = "active";
+          else if (finished[i]) nodeStates[i] = "done";
+          else if (visited[i]) nodeStates[i] = "queued";
+          else nodeStates[i] = "unvisited";
+        }
+        frames.push({
+          mode: "dfs",
+          nodeStates,
+          checkEdge: opts.checkEdge || null,
+          checkEdgeType: opts.checkEdgeType || "",
+          treeEdges: new Set(treeEdges),
+          stack: stack.map(x => ({ ...x })),
+          visited: visited.slice(),
+          order: order.slice(),
+          codeLines: opts.codeLines,
+          explain: opts.explain,
+          tip: opts.tip || "",
+          tone: opts.tone || "info",
+          vars: [
+            { name: "当前 u", val: opts.cur !== undefined && opts.cur !== null ? String(opts.cur) : "-", tone: "blue" },
+            { name: "栈深", val: String(stack.length), tone: "purple" },
+            { name: "DFS 序列", val: order.length ? order.join(" → ") : "空" }
+          ]
+        });
+      }
+
+      function dfs(u) {
+        visited[u] = true;
+        order.push(u);
+        stack.push({ label: `DFS(${u})`, stage: "探索中" });
+        snap({
+          cur: u, codeLines: [1, 2, 3], tone: "good",
+          explain: `压栈进入 DFS(${u})，立即标记 visited[${u}] = true，加入访问序列。`
+        });
+
+        for (const { to: v } of ADJ[u]) {
+          if (!visited[v]) {
+            stack[stack.length - 1].stage = `深入 → ${v}`;
+            treeEdges.add(edgeKey(u, v));
+            snap({
+              cur: u, checkEdge: edgeKey(u, v), checkEdgeType: "ok", codeLines: [5, 6],
+              explain: `发现未访问邻居 ${v}，沿着边 (${u} - ${v}) 一路扎下去调用 DFS(${v})！`
+            });
+            dfs(v);
+            stack[stack.length - 1].stage = `回溯自 ${v}`;
+            snap({
+              cur: u, codeLines: [4],
+              explain: `从 DFS(${v}) 回溯回到顶点 ${u}，继续检查 ${u} 剩下的邻居。`
+            });
+          } else {
+            snap({
+              cur: u, checkEdge: edgeKey(u, v), checkEdgeType: "skip", codeLines: [5], tone: "warn",
+              explain: `检查边 (${u} - ${v})：顶点 ${v} 已访问过，跳过（防止在环里兜圈子死循环！）。`
+            });
+          }
+        }
+        finished[u] = true;
+        stack[stack.length - 1].stage = "完毕出栈";
+        snap({ cur: u, codeLines: [9], explain: `顶点 ${u} 的所有邻居都已探索完毕，DFS(${u}) 出栈回溯。` });
+        stack.pop();
+      }
+
+      dfs(start);
+      snap({
+        cur: null, codeLines: [9], tone: "good",
+        explain: `🎉 DFS 深度优先遍历完成！探索序列：[${order.join(" → ")}]。`
+      });
+      return frames;
+    }
+
+    function buildDijkstra(start) {
+      const frames = [];
+      const INF = 9999;
+      const dist = Array(6).fill(INF);
+      const visited = Array(6).fill(false);
+      const prev = Array(6).fill(-1);
+      dist[start] = 0;
+
+      function getSptEdges() {
+        const s = new Set();
+        for (let i = 0; i < 6; i++) {
+          if (prev[i] !== -1) s.add(edgeKey(i, prev[i]));
+        }
+        return s;
+      }
+
+      function snap(opts) {
+        const nodeStates = {};
+        for (let i = 0; i < 6; i++) {
+          if (opts.cur === i) nodeStates[i] = "active";
+          else if (visited[i]) nodeStates[i] = "done";
+          else if (dist[i] < INF) nodeStates[i] = "queued";
+          else nodeStates[i] = "unvisited";
+        }
+        frames.push({
+          mode: "dijkstra",
+          nodeStates,
+          dist: dist.slice(),
+          visited: visited.slice(),
+          prev: prev.slice(),
+          cur: opts.cur ?? null,
+          relaxedNode: opts.relaxedNode ?? null,
+          relaxedDelta: opts.relaxedDelta || "",
+          checkEdge: opts.checkEdge || null,
+          checkEdgeType: opts.checkEdgeType || "",
+          treeEdges: getSptEdges(),
+          codeLines: opts.codeLines,
+          explain: opts.explain,
+          tip: opts.tip || "",
+          tone: opts.tone || "info",
+          vars: [
+            { name: "起点", val: String(start), tone: "blue" },
+            { name: "当前锁定 u", val: opts.cur !== undefined && opts.cur !== null ? `${opts.cur} (dist=${dist[opts.cur]})` : "-", tone: "green" },
+            { name: "已锁定数", val: `${visited.filter(Boolean).length} / 6` }
+          ]
+        });
+      }
+
+      snap({
+        cur: null, codeLines: [1],
+        explain: `初始化 Dijkstra：起点 dist[${start}] = 0，其余顶点距离均为 ∞。每轮挑选“未锁定且 dist 最小”的顶点永久锁定并松弛它的邻居！`,
+        tip: "💡 <strong>什么是「松弛 (Relax)」？</strong>就是试试看：从起点先到 u 再走边 (u,v)，会不会比原来记录的 dist[v] 更短？更短就立刻刷新！"
+      });
+
+      for (let k = 0; k < 6; k++) {
+        let u = -1;
+        for (let i = 0; i < 6; i++) {
+          if (!visited[i] && (u === -1 || dist[i] < dist[u])) u = i;
+        }
+        if (u === -1 || dist[u] === INF) break;
+
+        visited[u] = true;
+        snap({
+          cur: u, codeLines: [3, 4], tone: "good",
+          explain: `第 ${k + 1} 轮：在所有未锁定顶点中，顶点 ${u} 的 dist[${u}] = ${dist[u]} 最小！将 visited[${u}] = true，它的最短路从此永久确定。`
+        });
+
+        for (const { to: v, w } of ADJ[u]) {
+          if (visited[v]) continue;
+          const cand = dist[u] + w;
+          const old = dist[v];
+          if (cand < old) {
+            dist[v] = cand;
+            prev[v] = u;
+            const oldStr = old === INF ? "∞" : String(old);
+            snap({
+              cur: u, relaxedNode: v, relaxedDelta: `${oldStr} → ${cand}`,
+              checkEdge: edgeKey(u, v), checkEdgeType: "relax",
+              codeLines: [6, 7, 8], tone: "warn",
+              explain: `✨ 松弛成功！经由 ${u} 到 ${v} 的距离 = ${dist[u]} + ${w} = ${cand} < 原值 ${oldStr}，更新 dist[${v}] = ${cand}，前驱 prev[${v}] = ${u}！`,
+              tip: old !== INF
+                ? `🔥 <strong>多路径绕远反而更近！</strong>原本到 ${v} 的距离是 ${old}，现在借道 ${u} 居然缩短到了 ${cand}，右侧表格和绿色最短路树边已同步刷新！`
+                : ""
+            });
+          } else {
+            snap({
+              cur: u, checkEdge: edgeKey(u, v), checkEdgeType: "skip",
+              codeLines: [6],
+              explain: `检查边 (${u} → ${v}, 权 ${w})：${dist[u]} + ${w} = ${cand} ≥ 当前 dist[${v}] = ${old}，没有更短，不更新。`
+            });
+          }
+        }
+      }
+
+      snap({
+        cur: null, codeLines: [11], tone: "good",
+        explain: `🎉 Dijkstra 执行完毕！起点 ${start} 到所有顶点的最短距离全部确定，图中绿色高亮边即为「最短路径树」。`,
+        tip: "⚠️ <strong>适用前提：</strong>Dijkstra 要求所有边权非负（不能有负权边），否则贪心锁定的 dist 可能会被后面的负边推翻！"
+      });
+      return frames;
+    }
+
+    function renderGraphSvg(frame) {
+      const W = 552, H = 312;
+      let edgesSvg = "";
+      EDGES.forEach(e => {
+        const a = NODES[e.u], b = NODES[e.v];
+        const key = edgeKey(e.u, e.v);
+        let stroke = "#cbd5e1", sw = 2.4, dash = "";
+        if (frame.treeEdges && frame.treeEdges.has(key)) { stroke = "#10b981"; sw = 3.8; }
+        if (frame.checkEdge === key) {
+          sw = 4.5;
+          if (frame.checkEdgeType === "relax") stroke = "#f59e0b";
+          else if (frame.checkEdgeType === "ok") stroke = "#2563eb";
+          else if (frame.checkEdgeType === "skip") { stroke = "#ef4444"; dash = 'stroke-dasharray="6,4"'; }
+        }
+        edgesSvg += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${stroke}" stroke-width="${sw}" ${dash}/>`;
+
+        // Weight label pill
+        const mx = (a.x + b.x) / 2;
+        const my = (a.y + b.y) / 2;
+        const showW = frame.mode === "dijkstra";
+        if (showW) {
+          edgesSvg += `
+            <rect x="${mx - 12}" y="${my - 10}" width="24" height="20" rx="6" fill="#ffffff" stroke="${stroke === '#cbd5e1' ? '#94a3b8' : stroke}" stroke-width="1.5"/>
+            <text x="${mx}" y="${my + 4.5}" text-anchor="middle" font-family="monospace" font-size="12" font-weight="800" fill="#0f172a">${e.w}</text>`;
+        } else {
+          edgesSvg += `<text x="${mx}" y="${my - 5}" text-anchor="middle" font-family="monospace" font-size="10.5" fill="#94a3b8">${e.w}</text>`;
+        }
+      });
+
+      let nodesSvg = "";
+      NODES.forEach(n => {
+        const st = frame.nodeStates[n.id];
+        let fill = "#ffffff", stroke = "#64748b", txt = "#0f172a", sw = 2.4;
+        if (st === "queued") { fill = "#dbeafe"; stroke = "#2563eb"; txt = "#1d4ed8"; sw = 2.8; }
+        if (st === "done") { fill = "#ecfdf5"; stroke = "#059669"; txt = "#047857"; sw = 2.8; }
+        if (st === "active") { fill = "#2563eb"; stroke = "#1d4ed8"; txt = "#ffffff"; sw = 3.4; }
+        if (frame.relaxedNode === n.id) { fill = "#fef3c7"; stroke = "#d97706"; txt = "#b45309"; sw = 3.4; }
+
+        nodesSvg += `
+          <g>
+            ${st === "active" ? `<circle cx="${n.x}" cy="${n.y}" r="28" fill="rgba(37,99,235,0.16)"/>` : ""}
+            <circle cx="${n.x}" cy="${n.y}" r="21" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>
+            <text x="${n.x}" y="${n.y + 6}" text-anchor="middle" font-family="monospace" font-size="16" font-weight="800" fill="${txt}">${n.id}</text>
+          </g>`;
+
+        if (frame.mode === "dijkstra") {
+          const d = frame.dist[n.id];
+          const dStr = d >= 9999 ? "∞" : String(d);
+          const dy = n.y < 140 ? n.y - 31 : n.y + 34;
+          const isRel = frame.relaxedNode === n.id;
+          nodesSvg += `
+            <rect x="${n.x - 24}" y="${dy - 11}" width="48" height="20" rx="6" fill="${isRel ? '#f59e0b' : '#f1f5f9'}" stroke="${isRel ? '#b45309' : '#cbd5e1'}"/>
+            <text x="${n.x}" y="${dy + 3}" text-anchor="middle" font-family="monospace" font-size="11.5" font-weight="800" fill="${isRel ? '#fff' : '#334155'}">d=${dStr}</text>`;
+        }
+      });
+
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${edgesSvg}${nodesSvg}</svg>`;
+    }
+
+    let currentMode = "bfs";
+    let startNode = 0;
+    const stageEl = document.getElementById("grSvgStage");
+    const varsEl = document.getElementById("grVars");
+    const explainEl = document.getElementById("grExplain");
+    const auxTitleEl = document.getElementById("grAuxTitle");
+    const auxBodyEl = document.getElementById("grAuxBody");
+    const codeEl = document.getElementById("grCode");
+    const codeTagEl = document.getElementById("grCodeTag");
+
+    const player = new FramePlayer("player-gr", (frame) => {
+      stageEl.innerHTML = renderGraphSvg(frame);
+      renderVars(varsEl, frame.vars);
+      renderExplain(explainEl, frame);
+      renderCode(codeEl, CODES[frame.mode], frame.codeLines, false);
+
+      if (frame.mode === "bfs") {
+        auxTitleEl.textContent = "📥 BFS 队列与 visited[] 数组";
+        const qHtml = frame.queue.length
+          ? frame.queue.map((v, i) => `<div class="q-item${i === 0 ? " head" : ""}">${v}</div>`).join("")
+          : '<span class="empty-hint">队列为空</span>';
+        const vHtml = frame.visited.map((b, i) =>
+          `<span class="tag-pill ${b ? 'tag-blue' : 'tag-slate'}">${i}: ${b ? 'true' : 'false'}</span>`
+        ).join(" ");
+        auxBodyEl.innerHTML = `
+          <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:5px;">当前队列 (队头在左)：</div>
+          <div class="aux-queue" style="margin-bottom:10px;">${qHtml}</div>
+          <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:5px;">visited[] 标记数组：</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">${vHtml}</div>`;
+      } else if (frame.mode === "dfs") {
+        auxTitleEl.textContent = "📚 DFS 递归调用栈（栈顶在上）";
+        const stHtml = frame.stack.length
+          ? frame.stack.map((sf, i) => `<div class="stack-frame${i === frame.stack.length - 1 ? " top" : ""}"><span>${escHtml(sf.label)}</span><span class="stack-badge">${escHtml(sf.stage)}</span></div>`).join("")
+          : '<span class="empty-hint" style="text-align:center">递归栈已清空</span>';
+        auxBodyEl.innerHTML = `<div class="aux-stack">${stHtml}</div>`;
+      } else {
+        auxTitleEl.textContent = "🧭 Dijkstra 最短路表 dist[] / visited[]";
+        let rows = "";
+        for (let i = 0; i < 6; i++) {
+          const isCur = frame.cur === i;
+          const isRel = frame.relaxedNode === i;
+          const isDone = frame.visited[i];
+          const trCls = isRel ? "row-relaxed" : isCur ? "row-current" : isDone ? "row-done" : "";
+          const distStr = isRel
+            ? `<span style="color:#d97706">${frame.relaxedDelta}</span>`
+            : (frame.dist[i] >= 9999 ? "∞" : frame.dist[i]);
+          const visTag = isDone
+            ? '<span class="tag-pill tag-green">已锁定 ✓</span>'
+            : '<span class="tag-pill tag-slate">待定</span>';
+          rows += `<tr class="${trCls}"><td>顶点 ${i}</td><td>${visTag}</td><td>${distStr}</td><td>${frame.prev[i] === -1 ? "-" : frame.prev[i]}</td></tr>`;
+        }
+        auxBodyEl.innerHTML = `<table class="dijk-table"><thead><tr><th>顶点</th><th>visited</th><th>dist[]</th><th>prev 前驱</th></tr></thead><tbody>${rows}</tbody></table>`;
+      }
+    }, 900);
+    players.gr = player;
+
+    function rebuild() {
+      document.querySelectorAll("#grModeGroup .btn").forEach(b => b.classList.toggle("active", b.dataset.mode === currentMode));
+      const tags = { bfs: "Graph_BFS.cpp", dfs: "Graph_DFS.cpp", dijkstra: "Dijkstra.cpp" };
+      codeTagEl.textContent = tags[currentMode];
+      let frames = [];
+      if (currentMode === "bfs") frames = buildBFS(startNode);
+      else if (currentMode === "dfs") frames = buildDFS(startNode);
+      else frames = buildDijkstra(startNode);
+      player.setFrames(frames, false, 0);
+    }
+
+    document.querySelectorAll("#grModeGroup .btn").forEach(b => {
+      b.addEventListener("click", () => { currentMode = b.dataset.mode; rebuild(); });
+    });
+    document.getElementById("grStartSelect").addEventListener("change", (e) => {
+      startNode = Number(e.target.value);
+      rebuild();
+    });
+
+    rebuild();
+    return { player };
+  })();
+
+  /* ============================================================================
+   * 模块 5：二叉排序树 BST（第 6 章）
+   * ============================================================================ */
+  const BST = (function () {
+    const PRESET = [50, 30, 70, 20, 40, 60, 80, 65];
+
+    const CODES = {
+      search: [
+        "BSTNode* search(BSTNode* root, int key) {",
+        "    if (root == nullptr) return nullptr; // 查找失败",
+        "    if (key == root->val) return root;   // ✅ 命中！",
+        "    if (key < root->val) return search(root->left, key);",
+        "    else                 return search(root->right, key);",
+        "}"
+      ],
+      insert: [
+        "BSTNode* insert(BSTNode* root, int key) {",
+        "    if (root == nullptr) return new BSTNode(key); // 空位落地！",
+        "    if (key < root->val)      root->left  = insert(root->left, key);",
+        "    else if (key > root->val) root->right = insert(root->right, key);",
+        "    return root; // 若相等则不重复插入",
+        "}"
+      ],
+      delete: [
+        "BSTNode* remove(BSTNode* root, int key) {",
+        "    if (!root) return nullptr;",
+        "    if (key < root->val)      root->left  = remove(root->left, key);",
+        "    else if (key > root->val) root->right = remove(root->right, key);",
+        "    else { // 🎯 找到待删节点！分三种情况：",
+        "        if (!root->left)  return root->right; // 情况1/2: 无左子",
+        "        if (!root->right) return root->left;  // 情况2: 仅左子",
+        "        // 情况3(双孩子): 找右子树最小节点(中序后继)",
+        "        BSTNode* s = root->right;",
+        "        while (s->left) s = s->left;",
+        "        root->val = s->val;                   // 复制后继值覆盖当前节点",
+        "        root->right = remove(root->right, s->val); // 递归删原后继",
+        "    }",
+        "    return root;",
+        "}"
+      ]
+    };
+
+    function cloneTree(node) {
+      if (!node) return null;
+      return { val: node.val, left: cloneTree(node.left), right: cloneTree(node.right) };
+    }
+
+    function insertRaw(root, val) {
+      if (!root) return { val, left: null, right: null };
+      if (val < root.val) root.left = insertRaw(root.left, val);
+      else if (val > root.val) root.right = insertRaw(root.right, val);
+      return root;
+    }
+
+    function countNodes(root) {
+      return root ? 1 + countNodes(root.left) + countNodes(root.right) : 0;
+    }
+
+    function getInorder(root, arr = []) {
+      if (!root) return arr;
+      getInorder(root.left, arr);
+      arr.push(root.val);
+      getInorder(root.right, arr);
+      return arr;
+    }
+
+    function makePresetTree() {
+      let r = null;
+      PRESET.forEach(v => { r = insertRaw(r, v); });
+      return r;
+    }
+
+    let liveRoot = makePresetTree();
+
+    function makeFrame(tree, mode, opts) {
+      return {
+        tree: cloneTree(tree),
+        mode,
+        activeVal: opts.activeVal ?? null,
+        foundVal: opts.foundVal ?? null,
+        delVal: opts.delVal ?? null,
+        succVal: opts.succVal ?? null,
+        pathVals: new Set(opts.pathVals || []),
+        codeLines: opts.codeLines || [],
+        explain: opts.explain,
+        tip: opts.tip || "",
+        tone: opts.tone || "info",
+        vars: opts.vars || []
+      };
+    }
+
+    function recordSearch(key) {
+      const frames = [];
+      const path = [];
+      let cur = liveRoot;
+      frames.push(makeFrame(liveRoot, "search", {
+        codeLines: [1],
+        vars: [{ name: "目标 key", val: String(key), tone: "blue" }],
+        explain: `准备在 BST 中查找 ${key}，从根节点出发，每步只需比大小决定走左还是走右！`
+      }));
+
+      while (cur) {
+        path.push(cur.val);
+        if (key === cur.val) {
+          frames.push(makeFrame(liveRoot, "search", {
+            foundVal: cur.val, pathVals: path, codeLines: [3], tone: "good",
+            vars: [{ name: "key", val: String(key) }, { name: "cur->val", val: String(cur.val), tone: "green" }],
+            explain: `✅ 命中！当前节点值正好等于 ${key}，仅比较 ${path.length} 次就找到了！`
+          }));
+          return frames;
+        } else if (key < cur.val) {
+          frames.push(makeFrame(liveRoot, "search", {
+            activeVal: cur.val, pathVals: path, codeLines: [4],
+            vars: [{ name: "比较", val: `${key} < ${cur.val} → 走左子树`, tone: "blue" }],
+            explain: `${key} < ${cur.val}，根据 BST 性质，目标一定在左子树，向右整棵子树全部排除！`
+          }));
+          cur = cur.left;
+        } else {
+          frames.push(makeFrame(liveRoot, "search", {
+            activeVal: cur.val, pathVals: path, codeLines: [5],
+            vars: [{ name: "比较", val: `${key} > ${cur.val} → 走右子树`, tone: "blue" }],
+            explain: `${key} > ${cur.val}，目标一定在右子树，往右走！`
+          }));
+          cur = cur.right;
+        }
+      }
+
+      frames.push(makeFrame(liveRoot, "search", {
+        pathVals: path, codeLines: [2], tone: "danger",
+        vars: [{ name: "结果", val: "nullptr (未找到)", tone: "red" }],
+        explain: `❌ 走到了空指针 nullptr，BST 中不存在值为 ${key} 的节点。`
+      }));
+      return frames;
+    }
+
+    function recordInsert(key) {
+      const frames = [];
+      if (countNodes(liveRoot) >= 15) {
+        frames.push(makeFrame(liveRoot, "insert", {
+          codeLines: [1], tone: "warn",
+          explain: "当前树已有 15 个节点（为保证画布清晰建议不超过 15 个），请先删除几个节点或恢复预置树。"
+        }));
+        return frames;
+      }
+      const path = [];
+      let cur = liveRoot;
+      let parent = null;
+      let isLeft = false;
+
+      frames.push(makeFrame(liveRoot, "insert", {
+        codeLines: [1],
+        vars: [{ name: "待插入 key", val: String(key), tone: "green" }],
+        explain: `准备插入 ${key}：新节点永远插在某个叶子下面的空位上，不会打乱原有结构！`
+      }));
+
+      while (cur) {
+        path.push(cur.val);
+        if (key === cur.val) {
+          frames.push(makeFrame(liveRoot, "insert", {
+            foundVal: cur.val, pathVals: path, codeLines: [5], tone: "warn",
+            vars: [{ name: "状态", val: `已存在 ${key}`, tone: "amber" }],
+            explain: `⚠️ 节点 ${key} 已经在树中了，标准 BST 不插入重复键，直接返回。`
+          }));
+          return frames;
+        }
+        parent = cur;
+        if (key < cur.val) {
+          isLeft = true;
+          frames.push(makeFrame(liveRoot, "insert", {
+            activeVal: cur.val, pathVals: path, codeLines: [3],
+            vars: [{ name: "路径", val: `${key} < ${cur.val} → 向左找空位`, tone: "blue" }],
+            explain: `${key} < ${cur.val}，继续向左子树寻找空位。`
+          }));
+          cur = cur.left;
+        } else {
+          isLeft = false;
+          frames.push(makeFrame(liveRoot, "insert", {
+            activeVal: cur.val, pathVals: path, codeLines: [4],
+            vars: [{ name: "路径", val: `${key} > ${cur.val} → 向右找空位`, tone: "blue" }],
+            explain: `${key} > ${cur.val}，继续向右子树寻找空位。`
+          }));
+          cur = cur.right;
+        }
+      }
+
+      const newNode = { val: key, left: null, right: null };
+      if (!parent) liveRoot = newNode;
+      else if (isLeft) parent.left = newNode;
+      else parent.right = newNode;
+
+      frames.push(makeFrame(liveRoot, "insert", {
+        foundVal: key, pathVals: path, codeLines: [2], tone: "good",
+        vars: [{ name: "新节点", val: `${key} 挂载完成 ✅`, tone: "green" }],
+        explain: `🎉 找到空位！new BSTNode(${key}) 作为 ${parent ? parent.val + (isLeft ? " 的左孩子" : " 的右孩子") : "根节点"} 落地，看下方中序遍历依然严格升序！`
+      }));
+      return frames;
+    }
+
+    function recordDelete(key) {
+      const frames = [];
+      const workTree = cloneTree(liveRoot);
+      const path = [];
+
+      frames.push(makeFrame(workTree, "delete", {
+        codeLines: [1],
+        vars: [{ name: "目标删除 key", val: String(key), tone: "red" }],
+        explain: `准备删除节点 ${key}：先沿着 BST 查找它，再根据孩子数量（0 / 1 / 2 个孩子）分情况处理。`
+      }));
+
+      function delRec(node, target, isSubDelete) {
+        if (!node) {
+          frames.push(makeFrame(workTree, "delete", {
+            pathVals: path, codeLines: [2], tone: "danger",
+            vars: [{ name: "结果", val: `未找到 ${target}`, tone: "red" }],
+            explain: `❌ 走到空指针，BST 中不存在节点 ${target}，无需删除。`
+          }));
+          return null;
+        }
+        path.push(node.val);
+        if (target < node.val) {
+          frames.push(makeFrame(workTree, "delete", {
+            activeVal: node.val, pathVals: path, codeLines: [3],
+            vars: [{ name: "查找", val: `${target} < ${node.val} → 走左`, tone: "blue" }],
+            explain: `${target} < ${node.val}，往左子树继续寻找 ${target}。`
+          }));
+          node.left = delRec(node.left, target, isSubDelete);
+          return node;
+        }
+        if (target > node.val) {
+          frames.push(makeFrame(workTree, "delete", {
+            activeVal: node.val, pathVals: path, codeLines: [4],
+            vars: [{ name: "查找", val: `${target} > ${node.val} → 走右`, tone: "blue" }],
+            explain: `${target} > ${node.val}，往右子树继续寻找 ${target}。`
+          }));
+          node.right = delRec(node.right, target, isSubDelete);
+          return node;
+        }
+
+        // Found target!
+        if (!node.left && !node.right) {
+          frames.push(makeFrame(workTree, "delete", {
+            delVal: node.val, pathVals: path, codeLines: [5, 6], tone: "warn",
+            vars: [{ name: "情况", val: "叶子节点（0孩子）", tone: "amber" }],
+            explain: `🎯 找到 ${node.val}！它是叶子节点，没有左右孩子，直接删掉返回 nullptr 即可。`
+          }));
+          return null;
+        }
+        if (!node.left || !node.right) {
+          const child = node.left || node.right;
+          frames.push(makeFrame(workTree, "delete", {
+            delVal: node.val, foundVal: child.val, pathVals: path, codeLines: [5, !node.left ? 6 : 7], tone: "warn",
+            vars: [{ name: "情况", val: `单孩子节点 → 由 ${child.val} 顶替`, tone: "amber" }],
+            explain: `🎯 找到 ${node.val}！它只有 1 个孩子（${child.val}），${isSubDelete ? "这正是删原后继时的简单情况：" : ""}让父节点直接接管孩子 ${child.val}！`
+          }));
+          return child;
+        }
+
+        // Case 3: TWO CHILDREN!
+        frames.push(makeFrame(workTree, "delete", {
+          delVal: node.val, pathVals: path, codeLines: [5, 8], tone: "danger",
+          vars: [{ name: "情况", val: "⚠️ 双孩子节点！", tone: "red" }],
+          explain: `🎯 找到目标节点 ${node.val}，它左右孩子俱全（左 ${node.left.val}、右 ${node.right.val}）！不能直接摘掉，需要找一个「完美替身」。`,
+          tip: "💡 <strong>谁有资格当替身？</strong>「右子树中最小的节点」（中序后继）：它比整个左子树都大，又比右子树其余所有节点都小，顶上来后 BST 性质纹丝不动！"
+        }));
+
+        let s = node.right;
+        frames.push(makeFrame(workTree, "delete", {
+          delVal: node.val, succVal: s.val, codeLines: [9],
+          vars: [{ name: "找后继 s", val: `先进入右孩子 ${s.val}`, tone: "purple" }],
+          explain: `第 1 步找替身：指针 s 先迈进右子树根 ${s.val}，然后一路向左走到头！`
+        }));
+
+        while (s.left) {
+          s = s.left;
+          frames.push(makeFrame(workTree, "delete", {
+            delVal: node.val, succVal: s.val, codeLines: [10],
+            vars: [{ name: "一路向左 s", val: String(s.val), tone: "purple" }],
+            explain: `继续向左走，到达 ${s.val}（${s.left ? "还有左孩子，继续" : "已无左孩子，它就是右子树最小值！"}）。`
+          }));
+        }
+
+        const succVal = s.val;
+        const oldVal = node.val;
+        frames.push(makeFrame(workTree, "delete", {
+          delVal: oldVal, succVal: succVal, codeLines: [10], tone: "good",
+          vars: [{ name: "锁定中序后继", val: String(succVal), tone: "purple" }],
+          explain: `✨ 找到右子树最小节点 ${succVal}！注意它一定没有左孩子（最多只有右孩子）。`
+        }));
+
+        // Copy value over!
+        node.val = succVal;
+        frames.push(makeFrame(workTree, "delete", {
+          foundVal: succVal, delVal: null, codeLines: [11], tone: "good",
+          vars: [{ name: "值覆盖", val: `原 ${oldVal} 位置改写为 ${succVal}`, tone: "green" }],
+          explain: `第 2 步值覆盖：把后继的值 ${succVal} 复制过来，覆盖掉原本的 ${oldVal}！（此时右子树里暂时还有一个重复的 ${succVal}）`
+        }));
+
+        frames.push(makeFrame(workTree, "delete", {
+          foundVal: succVal, codeLines: [12], tone: "warn",
+          vars: [{ name: "下一步", val: `在右子树递归删除原 ${succVal}`, tone: "amber" }],
+          explain: `第 3 步清理替身：调用 remove(root->right, ${succVal}) 把右子树里原来的 ${succVal} 删掉。因为它绝没有左孩子，必退化为简单的 0/1 孩子删除！`
+        }));
+
+        // Delete original successor from right subtree
+        node.right = delRec(node.right, succVal, true);
+        return node;
+      }
+
+      const nextRoot = delRec(workTree, key, false);
+      liveRoot = nextRoot;
+      frames.push(makeFrame(liveRoot, "delete", {
+        codeLines: [14], tone: "good",
+        vars: [{ name: "删除结果", val: `已完成，节点数=${countNodes(liveRoot)}`, tone: "green" }],
+        explain: `🎉 删除操作结束！观察下方中序遍历序列：依然保持严格升序，BST 性质完美维持！`
+      }));
+      return frames;
+    }
+
+    function renderBstSvg(frame) {
+      const W = 540, H = 310;
+      if (!frame.tree) {
+        return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"><text x="270" y="155" text-anchor="middle" font-size="15" fill="#94a3b8">当前 BST 为空树，请点击插入添加节点</text></svg>`;
+      }
+
+      // Compute inorder-based x + depth-based y so arbitrary trees NEVER overlap!
+      const nodesList = [];
+      let orderIdx = 0;
+      let maxDepth = 0;
+      function layout(node, depth, parent) {
+        if (!node) return;
+        maxDepth = Math.max(maxDepth, depth);
+        layout(node.left, depth + 1, node);
+        const item = { node, depth, parent, col: orderIdx++ };
+        node._pos = item;
+        nodesList.push(item);
+        layout(node.right, depth + 1, node);
+      }
+      layout(frame.tree, 0, null);
+
+      const n = nodesList.length;
+      const padX = 42, padY = 38;
+      const stepX = n > 1 ? (W - padX * 2) / (n - 1) : 0;
+      const stepY = maxDepth > 0 ? Math.min(68, (H - padY * 2) / maxDepth) : 0;
+
+      nodesList.forEach(item => {
+        item.x = n === 1 ? W / 2 : padX + item.col * stepX;
+        item.y = padY + item.depth * stepY;
+      });
+
+      let edges = "";
+      nodesList.forEach(item => {
+        if (item.parent && item.parent._pos) {
+          const p = item.parent._pos;
+          const onPath = frame.pathVals.has(item.node.val) && frame.pathVals.has(item.parent.val);
+          edges += `<line x1="${p.x}" y1="${p.y}" x2="${item.x}" y2="${item.y}" stroke="${onPath ? '#60a5fa' : '#cbd5e1'}" stroke-width="${onPath ? 3.2 : 2.2}"/>`;
+        }
+      });
+
+      const r = n > 11 ? 17 : 20;
+      let nodesSvg = "";
+      nodesList.forEach(item => {
+        const v = item.node.val;
+        let fill = "#ffffff", stroke = "#64748b", txt = "#0f172a", sw = 2.3;
+        if (frame.pathVals.has(v)) { fill = "#eff6ff"; stroke = "#60a5fa"; }
+        if (frame.activeVal === v) { fill = "#2563eb"; stroke = "#1d4ed8"; txt = "#ffffff"; sw = 3.2; }
+        if (frame.foundVal === v) { fill = "#059669"; stroke = "#047857"; txt = "#ffffff"; sw = 3.2; }
+        if (frame.delVal === v) { fill = "#dc2626"; stroke = "#991b1b"; txt = "#ffffff"; sw = 3.2; }
+        if (frame.succVal === v) { fill = "#7c3aed"; stroke = "#5b21b6"; txt = "#ffffff"; sw = 3.2; }
+
+        nodesSvg += `
+          <g>
+            <circle cx="${item.x}" cy="${item.y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>
+            <text x="${item.x}" y="${item.y + 5.5}" text-anchor="middle" font-family="monospace" font-size="${n > 11 ? 12.5 : 14}" font-weight="800" fill="${txt}">${v}</text>
+          </g>`;
+      });
+
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${edges}${nodesSvg}</svg>`;
+    }
+
+    const stageEl = document.getElementById("bstSvgStage");
+    const inorderEl = document.getElementById("bstInorder");
+    const sortedTagEl = document.getElementById("bstSortedTag");
+    const varsEl = document.getElementById("bstVars");
+    const explainEl = document.getElementById("bstExplain");
+    const codeEl = document.getElementById("bstCode");
+    const codeTagEl = document.getElementById("bstCodeTag");
+    const inputEl = document.getElementById("bstInput");
+
+    const player = new FramePlayer("player-bst", (frame) => {
+      stageEl.innerHTML = renderBstSvg(frame);
+      const seq = getInorder(frame.tree);
+      if (seq.length === 0) {
+        inorderEl.innerHTML = '<span class="empty-hint">空树</span>';
+      } else {
+        inorderEl.innerHTML = seq.map(v => `<div class="seq-node${v === frame.foundVal ? ' latest' : ''}">${v}</div>`).join("");
+      }
+      let ascending = true;
+      for (let i = 1; i < seq.length; i++) if (seq[i] < seq[i - 1]) ascending = false;
+      sortedTagEl.textContent = ascending ? "✅ 严格升序（BST 有效）" : "⏳ 替换过渡帧（待删原后继）";
+      sortedTagEl.className = "tag-pill " + (ascending ? "tag-green" : "tag-amber");
+
+      renderVars(varsEl, frame.vars);
+      renderExplain(explainEl, frame);
+      const tags = { search: "BST_Search.cpp", insert: "BST_Insert.cpp", delete: "BST_Delete.cpp" };
+      codeTagEl.textContent = tags[frame.mode];
+      renderCode(codeEl, CODES[frame.mode], frame.codeLines, false);
+    }, 950);
+    players.bst = player;
+
+    function resetPreset() {
+      liveRoot = makePresetTree();
+      player.setFrames([makeFrame(liveRoot, "search", {
+        codeLines: [1],
+        vars: [{ name: "节点数", val: String(countNodes(liveRoot)), tone: "blue" }],
+        explain: "已加载经典预置 BST：[50, 30, 70, 20, 40, 60, 80, 65]。你可以输入任意整数体验查找/插入/删除，或点击橙色按钮一键演示最难的「删除双孩子根节点 50」！"
+      })], false, 0);
+    }
+
+    function getInputKey() {
+      const v = parseInt(inputEl.value, 10);
+      return isNaN(v) ? 65 : Math.max(-99, Math.min(999, v));
+    }
+
+    document.getElementById("bstBtnSearch").addEventListener("click", () => {
+      player.setFrames(recordSearch(getInputKey()), true, 0);
+    });
+    document.getElementById("bstBtnInsert").addEventListener("click", () => {
+      player.setFrames(recordInsert(getInputKey()), true, 0);
+    });
+    document.getElementById("bstBtnDelete").addEventListener("click", () => {
+      player.setFrames(recordDelete(getInputKey()), true, 0);
+    });
+    document.getElementById("bstBtnDemo50").addEventListener("click", () => {
+      liveRoot = makePresetTree();
+      inputEl.value = 50;
+      player.setFrames(recordDelete(50), true, 0);
+    });
+    document.getElementById("bstBtnReset").addEventListener("click", () => resetPreset());
+
+    resetPreset();
+    return { player };
+  })();
+
+  /* ============================================================================
+   * 模块 6：核心排序对比竞技场（第 7 章）
+   * ============================================================================ */
+  const SORT = (function () {
+    const PROFILES = {
+      bubble: { name: "起泡排序（优化版 swapped）", time: "平均 O(n²) / 最好 O(n)", space: "O(1)", stable: "稳定", tag: "BubbleSort.cpp" },
+      insert: { name: "直接插入排序", time: "平均 O(n²) / 最好 O(n)", space: "O(1)", stable: "稳定", tag: "InsertionSort.cpp" },
+      select: { name: "简单选择排序", time: "恒为 O(n²)", space: "O(1)", stable: "不稳定", tag: "SelectionSort.cpp" },
+      quick:  { name: "快速排序（双指针挖坑）", time: "平均 O(n log n) / 最坏 O(n²)", space: "O(log n)", stable: "不稳定", tag: "QuickSort.cpp" },
+      heap:   { name: "堆排序（大顶堆 + 树图同步）", time: "恒为 O(n log n)", space: "O(1)", stable: "不稳定", tag: "HeapSort.cpp" },
+      merge:  { name: "二路归并排序", time: "恒为 O(n log n)", space: "O(n)", stable: "稳定", tag: "MergeSort.cpp" }
+    };
+
+    const CODES = {
+      bubble: [
+        "for (int i = 0; i < n - 1; i++) {",
+        "    bool swapped = false;",
+        "    for (int j = 0; j < n - 1 - i; j++) {",
+        "        if (a[j] > a[j + 1]) {",
+        "            swap(a[j], a[j + 1]);",
+        "            swapped = true;",
+        "        }",
+        "    }",
+        "    if (!swapped) break; // 本趟无交换，提前结束！",
+        "}"
+      ],
+      insert: [
+        "for (int i = 1; i < n; i++) {",
+        "    int key = a[i]; // 摸起一张新牌",
+        "    int j = i - 1;",
+        "    while (j >= 0 && a[j] > key) {",
+        "        a[j + 1] = a[j]; // 比 key 大的元素右移腾位置",
+        "        j--;",
+        "    }",
+        "    a[j + 1] = key;      // 插入正确位置",
+        "}"
+      ],
+      select: [
+        "for (int i = 0; i < n - 1; i++) {",
+        "    int minIdx = i;",
+        "    for (int j = i + 1; j < n; j++) {",
+        "        if (a[j] < a[minIdx]) minIdx = j; // 打擂台找最小",
+        "    }",
+        "    if (minIdx != i) swap(a[i], a[minIdx]); // 仅交换一次",
+        "}"
+      ],
+      quick: [
+        "void quickSort(int a[], int l, int r) {",
+        "    if (l >= r) return;",
+        "    int pivot = a[l], i = l, j = r; // 选最左元素作基准",
+        "    while (i < j) {",
+        "        while (i < j && a[j] >= pivot) j--; // 右指针找小的",
+        "        if (i < j) a[i++] = a[j];",
+        "        while (i < j && a[i] <= pivot) i++; // 左指针找大的",
+        "        if (i < j) a[j--] = a[i];",
+        "    }",
+        "    a[i] = pivot; // ✅ 基准永久归位！",
+        "    quickSort(a, l, i - 1); quickSort(a, i + 1, r);",
+        "}"
+      ],
+      heap: [
+        "// 1. 自底向上建大顶堆",
+        "for (int i = n/2 - 1; i >= 0; i--) siftDown(a, n, i);",
+        "// 2. 依次把堆顶最大值换到末尾并下滤修复",
+        "for (int end = n - 1; end > 0; end--) {",
+        "    swap(a[0], a[end]);   // 堆顶最大元素归位",
+        "    siftDown(a, end, 0);  // 剩余 [0..end-1] 重新调成大顶堆",
+        "}",
+        "// siftDown: 在父、左子、右子中找最大者交换并继续下沉"
+      ],
+      merge: [
+        "void mergeSort(int a[], int l, int r) {",
+        "    if (l >= r) return;",
+        "    int mid = l + (r - l) / 2;",
+        "    mergeSort(a, l, mid); mergeSort(a, mid + 1, r);",
+        "    // 双指针合并两个有序半区到辅助数组 tmp",
+        "    int i = l, j = mid + 1, k = 0;",
+        "    while (i <= mid && j <= r)",
+        "        tmp[k++] = (a[i] <= a[j]) ? a[i++] : a[j++];",
+        "    while (i <= mid) tmp[k++] = a[i++];",
+        "    while (j <= r)   tmp[k++] = a[j++];",
+        "    for (int t = 0; t < k; t++) a[l + t] = tmp[t]; // 拷回原数组",
+        "}"
+      ]
+    };
+
+    function genPreset(preset) {
+      if (preset === "reverse") return [86, 77, 68, 59, 50, 41, 32, 23, 14];
+      if (preset === "nearly")  return [16, 25, 34, 49, 42, 58, 67, 81, 74];
+      if (preset === "equal")   return [50, 50, 50, 50, 50, 50, 50, 50, 50];
+      // Random nice 9 values
+      const base = [15, 24, 33, 42, 51, 60, 69, 78, 88];
+      for (let i = base.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [base[i], base[j]] = [base[j], base[i]];
+      }
+      return base;
+    }
+
+    function recordBubble(initArr) {
+      const a = initArr.slice(), n = a.length;
+      const frames = [];
+      let cmp = 0, mov = 0;
+      const sorted = new Set();
+
+      const push = (st, ptrs, lines, explain, tip, tone) => frames.push({
+        arr: a.slice(), states: st, ptrs: ptrs || {}, cmp, mov,
+        codeLines: lines, explain, tip: tip || "", tone: tone || "info",
+        vars: [{ name: "比较次数", val: String(cmp) }, { name: "交换写入", val: String(mov) }]
+      });
+
+      push({}, {}, [1], "起泡排序开始：相邻元素两两比较，大的像气泡一样不断冒到最右侧！");
+      for (let i = 0; i < n - 1; i++) {
+        let swapped = false;
+        for (let j = 0; j < n - 1 - i; j++) {
+          cmp++;
+          const st = {};
+          sorted.forEach(k => st[k] = "sorted");
+          st[j] = "compare"; st[j + 1] = "compare";
+          push(st, { [j]: { t: "j", c: "p-amber" }, [j + 1]: { t: "j+1", c: "p-amber" } }, [3, 4],
+            `第 ${i + 1} 趟：比较 a[${j}]=${a[j]} 与 a[${j + 1}]=${a[j + 1]}。`);
+          if (a[j] > a[j + 1]) {
+            [a[j], a[j + 1]] = [a[j + 1], a[j]];
+            mov += 3;
+            swapped = true;
+            const st2 = {};
+            sorted.forEach(k => st2[k] = "sorted");
+            st2[j] = "swap"; st2[j + 1] = "swap";
+            push(st2, { [j]: { t: "换", c: "p-red" }, [j + 1]: { t: "换", c: "p-red" } }, [5, 6],
+              `前者更大，交换位置！swapped 置为 true。`, "", "warn");
+          }
+        }
+        sorted.add(n - 1 - i);
+        const stDone = {};
+        sorted.forEach(k => stDone[k] = "sorted");
+        if (!swapped) {
+          for (let k = 0; k < n; k++) stDone[k] = "sorted";
+          push(stDone, {}, [9], `🚀 优化生效！本趟 0 次交换，说明数组已经完全有序，立刻 break 提前收工！`,
+            "💡 <strong>这就是 swapped 优化的威力：</strong>在「全相等」或「已有序」数据上，时间复杂度从 O(n²) 直接降到 O(n)！", "good");
+          return frames;
+        }
+        push(stDone, {}, [1], `第 ${i + 1} 趟结束，最大值 ${a[n - 1 - i]} 稳稳冒泡到下标 ${n - 1 - i} 归位！`, "", "good");
+      }
+      const allS = {};
+      for (let k = 0; k < n; k++) allS[k] = "sorted";
+      push(allS, {}, [10], `🎉 起泡排序完成！共比较 ${cmp} 次，移动 ${mov} 次。`, "", "good");
+      return frames;
+    }
+
+    function recordInsert(initArr) {
+      const a = initArr.slice(), n = a.length;
+      const frames = [];
+      let cmp = 0, mov = 0;
+      const push = (st, ptrs, lines, explain, extraVars, tip, tone) => frames.push({
+        arr: a.slice(), states: st, ptrs: ptrs || {}, cmp, mov,
+        codeLines: lines, explain, tip: tip || "", tone: tone || "info",
+        vars: extraVars || []
+      });
+
+      push({ 0: "sorted" }, {}, [1], "直接插入排序：就像打扑克理牌！默认 a[0] 已经是有序手牌，从 i=1 开始逐张插入。");
+      for (let i = 1; i < n; i++) {
+        const key = a[i];
+        mov++;
+        const st0 = {};
+        for (let k = 0; k < i; k++) st0[k] = "sorted";
+        st0[i] = "pivot";
+        push(st0, { [i]: { t: `key=${key}`, c: "p-purple" } }, [2, 3],
+          `摸起新牌 key = a[${i}] = ${key}，准备向左寻找它的落脚点。`,
+          [{ name: "i", val: String(i) }, { name: "key", val: String(key), tone: "purple" }]);
+
+        let j = i - 1;
+        while (j >= 0) {
+          cmp++;
+          const stC = {};
+          for (let k = 0; k < i; k++) stC[k] = "sorted";
+          stC[j] = "compare";
+          push(stC, { [j]: { t: "j", c: "p-amber" } }, [4],
+            `比较手牌 a[${j}]=${a[j]} 与 key=${key}：${a[j] > key ? "比 key 大，需要右移腾位！" : "不大于 key，找到插入位置！"}`,
+            [{ name: "key", val: String(key), tone: "purple" }, { name: "j", val: String(j), tone: "amber" }]);
+          if (a[j] > key) {
+            a[j + 1] = a[j];
+            mov++;
+            const stM = {};
+            for (let k = 0; k <= i; k++) stM[k] = "sorted";
+            stM[j + 1] = "swap";
+            push(stM, { [j + 1]: { t: "右移", c: "p-red" } }, [5, 6],
+              `将 ${a[j]} 向右挪一格到下标 ${j + 1}，j 减 1 继续往左看。`,
+              [{ name: "key", val: String(key), tone: "purple" }, { name: "j", val: String(j - 1) }], "", "warn");
+            j--;
+          } else {
+            break;
+          }
+        }
+        a[j + 1] = key;
+        mov++;
+        const stIns = {};
+        for (let k = 0; k <= i; k++) stIns[k] = "sorted";
+        stIns[j + 1] = "pivot";
+        push(stIns, { [j + 1]: { t: "落位", c: "p-purple" } }, [8],
+          `✅ 将 key=${key} 放入下标 ${j + 1}！前 ${i + 1} 张手牌全部有序。`,
+          [{ name: "有序区间", val: `[0..${i}]`, tone: "green" }], "", "good");
+      }
+      const allS = {};
+      for (let k = 0; k < n; k++) allS[k] = "sorted";
+      push(allS, {}, [9], `🎉 直接插入排序完成！在「近乎有序」数据上极快（几乎只需 O(n)），共比较 ${cmp} 次、移动 ${mov} 次。`, [], "", "good");
+      return frames;
+    }
+
+    function recordSelect(initArr) {
+      const a = initArr.slice(), n = a.length;
+      const frames = [];
+      let cmp = 0, mov = 0;
+      const push = (st, ptrs, lines, explain, extraVars, tone) => frames.push({
+        arr: a.slice(), states: st, ptrs: ptrs || {}, cmp, mov,
+        codeLines: lines, explain, tone: tone || "info", vars: extraVars || []
+      });
+
+      push({}, {}, [1], "简单选择排序：每轮在未排区间里“打擂台”找出最小值的下标 minIdx，一轮只交换 1 次！");
+      for (let i = 0; i < n - 1; i++) {
+        let minIdx = i;
+        for (let j = i + 1; j < n; j++) {
+          cmp++;
+          const st = {};
+          for (let k = 0; k < i; k++) st[k] = "sorted";
+          st[minIdx] = "pivot";
+          st[j] = "compare";
+          const better = a[j] < a[minIdx];
+          if (better) minIdx = j;
+          push(st, { [minIdx]: { t: "min", c: "p-purple" }, [j]: { t: "j", c: "p-amber" } }, [3, 4],
+            `第 ${i + 1} 轮扫描 j=${j}：${better ? `发现更小值 a[${j}]=${a[j]}，擂主 minIdx 更新为 ${j}！` : `a[${j}]=${a[j]} 不小于当前最小 a[${minIdx}]=${a[minIdx]}。`}`,
+            [{ name: "i", val: String(i) }, { name: "minIdx", val: `${minIdx} (值${a[minIdx]})`, tone: "purple" }]);
+        }
+        if (minIdx !== i) {
+          [a[i], a[minIdx]] = [a[minIdx], a[i]];
+          mov += 3;
+          const st = {};
+          for (let k = 0; k < i; k++) st[k] = "sorted";
+          st[i] = "swap"; st[minIdx] = "swap";
+          push(st, { [i]: { t: "换入", c: "p-red" }, [minIdx]: { t: "换出", c: "p-red" } }, [6],
+            `将最小元素 ${a[i]} 交换到下标 ${i} 归位！（每轮最多只交换 1 次）`,
+            [{ name: "已归位", val: `[0..${i}]`, tone: "green" }], "warn");
+        } else {
+          const st = {};
+          for (let k = 0; k <= i; k++) st[k] = "sorted";
+          push(st, {}, [6], `a[${i}]=${a[i]} 本身就是剩余最小，无需交换，直接归位！`, [], "good");
+        }
+      }
+      const allS = {};
+      for (let k = 0; k < n; k++) allS[k] = "sorted";
+      push(allS, {}, [7], `🎉 简单选择排序完成！无论数据原本多有序，比较次数恒为 n(n-1)/2 = ${cmp} 次，但移动次数极少（${mov} 次）。`, [], "good");
+      return frames;
+    }
+
+    function recordQuick(initArr) {
+      const a = initArr.slice(), n = a.length;
+      const frames = [];
+      let cmp = 0, mov = 0;
+      const fixed = new Set();
+
+      const push = (st, ptrs, lines, explain, vars, tip, tone) => frames.push({
+        arr: a.slice(), states: st, ptrs: ptrs || {}, cmp, mov,
+        codeLines: lines, explain, vars: vars || [], tip: tip || "", tone: tone || "info"
+      });
+
+      push({}, {}, [1], "快速排序开始：每轮选一个基准 pivot，用左右双指针 i/j 把比它小的放左边、大的放右边，然后分治递归！");
+
+      function qs(l, r) {
+        if (l > r) return;
+        if (l === r) {
+          fixed.add(l);
+          const st = {}; fixed.forEach(k => st[k] = "sorted");
+          push(st, {}, [2], `区间 [${l}..${r}] 只剩单元素 ${a[l]}，自然归位！`, [{ name: "区间", val: `[${l}, ${r}]` }], "", "good");
+          return;
+        }
+        const pivot = a[l];
+        mov++;
+        let i = l, j = r;
+        const baseSt = () => {
+          const st = {};
+          for (let k = 0; k < n; k++) {
+            if (fixed.has(k)) st[k] = "sorted";
+            else if (k < l || k > r) st[k] = "dim";
+          }
+          return st;
+        };
+
+        let st0 = baseSt();
+        st0[l] = "pivot";
+        push(st0, { [i]: { t: `i/piv=${pivot}`, c: "p-purple" }, [j]: { t: "j", c: "p-blue" } }, [3],
+          `分区 [${l}..${r}]：选最左元素 pivot = ${pivot} 挖出留坑，左指针 i=${i}，右指针 j=${j}。`,
+          [{ name: "区间", val: `[${l}..${r}]` }, { name: "pivot", val: String(pivot), tone: "purple" }, { name: "i, j", val: `${i}, ${j}`, tone: "blue" }]);
+
+        while (i < j) {
+          while (i < j) {
+            cmp++;
+            const st = baseSt(); st[j] = "compare"; st[i] = "pivot";
+            const keepGoing = a[j] >= pivot;
+            push(st, { [i]: { t: "i(坑)", c: "p-purple" }, [j]: { t: "j", c: "p-amber" } }, [5],
+              `右指针 j=${j}：a[${j}]=${a[j]} ${keepGoing ? `≥ ${pivot}，继续向左找小元素` : `< ${pivot}，找到小元素！填到左坑 i=${i}`}`,
+              [{ name: "pivot", val: String(pivot), tone: "purple" }, { name: "i", val: String(i) }, { name: "j", val: String(j), tone: "amber" }]);
+            if (keepGoing) j--;
+            else break;
+          }
+          if (i < j) {
+            a[i] = a[j]; mov++;
+            const st = baseSt(); st[i] = "swap"; st[j] = "pivot";
+            push(st, { [i]: { t: "填入", c: "p-red" }, [j]: { t: "j(新坑)", c: "p-purple" } }, [6],
+              `a[${i}] = a[${j}](${a[j]})，右坑转移到 j=${j}，i 右移为 ${i + 1}。`,
+              [{ name: "pivot", val: String(pivot), tone: "purple" }, { name: "i, j", val: `${i + 1}, ${j}` }], "", "warn");
+            i++;
+          }
+          while (i < j) {
+            cmp++;
+            const st = baseSt(); st[i] = "compare"; st[j] = "pivot";
+            const keepGoing = a[i] <= pivot;
+            push(st, { [i]: { t: "i", c: "p-amber" }, [j]: { t: "j(坑)", c: "p-purple" } }, [7],
+              `左指针 i=${i}：a[${i}]=${a[i]} ${keepGoing ? `≤ ${pivot}，继续向右找大元素` : `> ${pivot}，找到大元素！填到右坑 j=${j}`}`,
+              [{ name: "pivot", val: String(pivot), tone: "purple" }, { name: "i", val: String(i), tone: "amber" }, { name: "j", val: String(j) }]);
+            if (keepGoing) i++;
+            else break;
+          }
+          if (i < j) {
+            a[j] = a[i]; mov++;
+            const st = baseSt(); st[j] = "swap"; st[i] = "pivot";
+            push(st, { [i]: { t: "i(新坑)", c: "p-purple" }, [j]: { t: "填入", c: "p-red" } }, [8],
+              `a[${j}] = a[${i}](${a[i]})，左坑转移到 i=${i}，j 左移为 ${j - 1}。`,
+              [{ name: "pivot", val: String(pivot), tone: "purple" }, { name: "i, j", val: `${i}, ${j - 1}` }], "", "warn");
+            j--;
+          }
+        }
+
+        a[i] = pivot; mov++;
+        fixed.add(i);
+        const stFin = baseSt(); stFin[i] = "sorted";
+        push(stFin, { [i]: { t: `piv=${pivot}归位`, c: "p-purple" } }, [10],
+          `✅ i 与 j 在下标 ${i} 相遇！把 pivot=${pivot} 填回坑位 a[${i}]，它从此永久归位！左边都 ≤ ${pivot}，右边都 ≥ ${pivot}。`,
+          [{ name: "归位下标", val: String(i), tone: "green" }],
+          "💡 <strong>思考题：</strong>试试切换右上角的「逆序」或「全相等」数据，你会发现每次都选最左当 pivot 时，快排分区极度不平衡，退化为 O(n²)！", "good");
+
+        qs(l, i - 1);
+        qs(i + 1, r);
+      }
+
+      qs(0, n - 1);
+      const allS = {};
+      for (let k = 0; k < n; k++) allS[k] = "sorted";
+      push(allS, {}, [12], `🎉 快速排序全部完成！共比较 ${cmp} 次，移动 ${mov} 次。`, [], "", "good");
+      return frames;
+    }
+
+    function recordHeap(initArr) {
+      const a = initArr.slice(), n = a.length;
+      const frames = [];
+      let cmp = 0, mov = 0;
+      let heapSize = n;
+
+      const push = (st, ptrs, lines, explain, vars, tip, tone) => frames.push({
+        arr: a.slice(), states: st, ptrs: ptrs || {}, cmp, mov,
+        heapSize, isHeap: true,
+        codeLines: lines, explain, vars: vars || [], tip: tip || "", tone: tone || "info"
+      });
+
+      function mkBase() {
+        const st = {};
+        for (let k = heapSize; k < n; k++) st[k] = "sorted";
+        return st;
+      }
+
+      push({}, {}, [1], "堆排序（柱状图 + 完全二叉树同步视图）：下标 i 的左孩子在 2i+1，右孩子在 2i+2！第 1 步先自底向上建「大顶堆」。",
+        [{ name: "heapSize", val: String(heapSize), tone: "blue" }],
+        "💡 <strong>数组怎么变成树？</strong>不需要任何指针！只要按层序填进数组，父节点 i 的左右孩子下标永远是 <code>2i+1</code> 和 <code>2i+2</code>！");
+
+      function siftDown(size, i, phaseLabel) {
+        while (true) {
+          let largest = i;
+          const l = 2 * i + 1, r = 2 * i + 2;
+          const stC = mkBase();
+          stC[i] = "pivot";
+          if (l < size) { cmp++; stC[l] = "compare"; if (a[l] > a[largest]) largest = l; }
+          if (r < size) { cmp++; stC[r] = "compare"; if (a[r] > a[largest]) largest = r; }
+
+          const ptrs = { [i]: { t: "父", c: "p-purple" } };
+          if (l < size) ptrs[l] = { t: "左", c: "p-amber" };
+          if (r < size) ptrs[r] = { t: "右", c: "p-amber" };
+
+          push(stC, ptrs, [phaseLabel === "build" ? 2 : 6, 8],
+            `${phaseLabel === "build" ? "【建堆下滤】" : "【修复下滤】"}节点 [${i}]=${a[i]} 与孩子比较，三者最大在下标 [${largest}]=${a[largest]}。`,
+            [{ name: "heapSize", val: String(size), tone: "blue" }, { name: "父节点 i", val: `${i} (值${a[i]})`, tone: "purple" }]);
+
+          if (largest !== i) {
+            [a[i], a[largest]] = [a[largest], a[i]];
+            mov += 3;
+            const stS = mkBase();
+            stS[i] = "swap"; stS[largest] = "swap";
+            push(stS, { [i]: { t: "上浮", c: "p-red" }, [largest]: { t: "下沉", c: "p-red" } }, [8],
+              `孩子更大！交换 a[${i}] 与 a[${largest}]，继续沿着下标 ${largest} 向下检查！`,
+              [{ name: "heapSize", val: String(size), tone: "blue" }], "", "warn");
+            i = largest;
+          } else {
+            break;
+          }
+        }
+      }
+
+      for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+        siftDown(n, i, "build");
+      }
+
+      const stBuilt = mkBase(); stBuilt[0] = "pivot";
+      push(stBuilt, { 0: { t: "堆顶最大!", c: "p-purple" } }, [3],
+        `✅ 大顶堆构建完成！此时堆顶 a[0] = ${a[0]} 一定是全数组的最大值。接下来反复把堆顶换到末尾并缩小堆！`,
+        [{ name: "堆顶 a[0]", val: String(a[0]), tone: "purple" }], "", "good");
+
+      for (let end = n - 1; end > 0; end--) {
+        [a[0], a[end]] = [a[end], a[0]];
+        mov += 3;
+        const stSw = mkBase();
+        stSw[0] = "swap"; stSw[end] = "swap";
+        push(stSw, { 0: { t: "新顶", c: "p-red" }, [end]: { t: "最大归位", c: "p-red" } }, [5],
+          `交换堆顶 a[0] 与堆尾 a[${end}]：最大值 ${a[end]} 正式归位到末尾，堆大小缩小为 ${end}！`,
+          [{ name: "新 heapSize", val: String(end), tone: "green" }], "", "good");
+        heapSize = end;
+        siftDown(heapSize, 0, "extract");
+      }
+
+      heapSize = 0;
+      const allS = {};
+      for (let k = 0; k < n; k++) allS[k] = "sorted";
+      push(allS, {}, [7], `🎉 堆排序完成！无论什么数据，时间复杂度恒为 O(n log n)，且完全原地空间 O(1)！`, [], "", "good");
+      return frames;
+    }
+
+    function recordMerge(initArr) {
+      const a = initArr.slice(), n = a.length;
+      const frames = [];
+      let cmp = 0, mov = 0;
+
+      const push = (st, ptrs, lines, explain, aux, vars, tone) => frames.push({
+        arr: a.slice(), states: st, ptrs: ptrs || {}, cmp, mov,
+        mergeAux: aux || null,
+        codeLines: lines, explain, vars: vars || [], tone: tone || "info"
+      });
+
+      push({}, {}, [1], "二路归并排序：分治思想——先不断对半拆分成单元素，再两两有序合并到辅助数组 tmp[] 后拷回！");
+
+      function ms(l, r) {
+        if (l >= r) return;
+        const mid = l + Math.floor((r - l) / 2);
+        ms(l, mid);
+        ms(mid + 1, r);
+
+        const tmp = [];
+        let i = l, j = mid + 1;
+
+        const baseSt = () => {
+          const st = {};
+          for (let k = 0; k < n; k++) {
+            if (k < l || k > r) st[k] = "dim";
+          }
+          return st;
+        };
+
+        push(baseSt(), { [l]: { t: "l", c: "p-blue" }, [mid]: { t: "mid", c: "p-purple" }, [r]: { t: "r", c: "p-blue" } }, [6],
+          `准备归并两个有序半区：[${l}..${mid}] 与 [${mid + 1}..${r}]！`,
+          { range: `[${l}..${r}]`, items: [] },
+          [{ name: "左半区", val: `[${l}..${mid}]` }, { name: "右半区", val: `[${mid + 1}..${r}]` }]);
+
+        while (i <= mid && j <= r) {
+          cmp++;
+          const takeLeft = a[i] <= a[j];
+          const st = baseSt();
+          st[i] = "compare"; st[j] = "compare";
+          tmp.push(takeLeft ? a[i] : a[j]);
+          mov++;
+          push(st, { [i]: { t: "i", c: "p-amber" }, [j]: { t: "j", c: "p-amber" } }, [7, 8],
+            `比较 a[${i}]=${a[i]} 与 a[${j}]=${a[j]}：取较小者 ${takeLeft ? a[i] : a[j]} 放入 tmp[]（相等时优先取左边，保证稳定性！）。`,
+            { range: `[${l}..${r}]`, items: tmp.slice() },
+            [{ name: "i, j", val: `${i}, ${j}`, tone: "amber" }, { name: "tmp 长度", val: String(tmp.length), tone: "purple" }]);
+          if (takeLeft) i++; else j++;
+        }
+        while (i <= mid) {
+          tmp.push(a[i]); mov++;
+          const st = baseSt(); st[i] = "pivot";
+          push(st, { [i]: { t: "剩余i", c: "p-purple" } }, [9],
+            `右半区已空，直接把左半区剩余元素 a[${i}]=${a[i]} 追加进 tmp[]。`,
+            { range: `[${l}..${r}]`, items: tmp.slice() }, []);
+          i++;
+        }
+        while (j <= r) {
+          tmp.push(a[j]); mov++;
+          const st = baseSt(); st[j] = "pivot";
+          push(st, { [j]: { t: "剩余j", c: "p-purple" } }, [10],
+            `左半区已空，直接把右半区剩余元素 a[${j}]=${a[j]} 追加进 tmp[]。`,
+            { range: `[${l}..${r}]`, items: tmp.slice() }, []);
+          j++;
+        }
+
+        for (let t = 0; t < tmp.length; t++) {
+          a[l + t] = tmp[t];
+          mov++;
+        }
+        const stDone = baseSt();
+        for (let k = l; k <= r; k++) stDone[k] = "sorted";
+        push(stDone, {}, [11],
+          `✅ 将有序的 tmp[] 拷回原数组 a[${l}..${r}]！该区间现已完全有序。`,
+          { range: `[${l}..${r}]`, items: tmp.slice() },
+          [{ name: "已合并区间", val: `[${l}..${r}]`, tone: "green" }], "good");
+      }
+
+      ms(0, n - 1);
+      const allS = {};
+      for (let k = 0; k < n; k++) allS[k] = "sorted";
+      push(allS, {}, [12], `🎉 二路归并排序完成！时间稳定 O(n log n)，但需要 O(n) 辅助空间 tmp[]。共比较 ${cmp} 次，写入 ${mov} 次。`, null, [], "good");
+      return frames;
+    }
+
+    function renderHeapTreeSvg(frame) {
+      const a = frame.arr, n = a.length;
+      const W = 540, H = 205;
+      // Fixed clean coordinates for 9-node complete binary tree (levels 0..3)
+      const coords = [
+        { x: 270, y: 30 }, // 0
+        { x: 140, y: 84 }, // 1
+        { x: 400, y: 84 }, // 2
+        { x: 75,  y: 138 }, // 3
+        { x: 205, y: 138 }, // 4
+        { x: 335, y: 138 }, // 5
+        { x: 465, y: 138 }, // 6
+        { x: 42,  y: 184 }, // 7
+        { x: 108, y: 184 }  // 8
+      ];
+
+      let edges = "";
+      for (let i = 1; i < n; i++) {
+        const p = Math.floor((i - 1) / 2);
+        const inHeap = i < frame.heapSize;
+        edges += `<line x1="${coords[p].x}" y1="${coords[p].y}" x2="${coords[i].x}" y2="${coords[i].y}" stroke="${inHeap ? '#94a3b8' : '#e2e8f0'}" stroke-width="${inHeap ? 2.2 : 1.5}" ${inHeap ? '' : 'stroke-dasharray="4,3"'}/>`;
+      }
+
+      let nodes = "";
+      for (let i = 0; i < n; i++) {
+        const { x, y } = coords[i];
+        const st = frame.states[i] || "default";
+        const inHeap = i < frame.heapSize;
+        let fill = "#eff6ff", stroke = "#3b82f6", txt = "#1e3a8a";
+        if (!inHeap || st === "sorted") { fill = "#ecfdf5"; stroke = "#10b981"; txt = "#065f46"; }
+        if (st === "compare") { fill = "#fef3c7"; stroke = "#d97706"; txt = "#92400e"; }
+        if (st === "swap") { fill = "#fee2e2"; stroke = "#dc2626"; txt = "#991b1b"; }
+        if (st === "pivot") { fill = "#f5f3ff"; stroke = "#7c3aed"; txt = "#5b21b6"; }
+
+        nodes += `
+          <g opacity="${inHeap || st === 'swap' ? 1 : 0.72}">
+            <circle cx="${x}" cy="${y}" r="18" fill="${fill}" stroke="${stroke}" stroke-width="2.4"/>
+            <text x="${x}" y="${y + 5}" text-anchor="middle" font-family="monospace" font-size="13" font-weight="800" fill="${txt}">${a[i]}</text>
+            <text x="${x + 22}" y="${y - 10}" font-family="monospace" font-size="10" font-weight="700" fill="#64748b">[${i}]</text>
+          </g>`;
+      }
+
+      return `
+        <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">🌳 同步完全二叉树堆结构（当前有效堆大小 heapSize = ${frame.heapSize}，虚线节点已弹出归位）</div>
+        <div class="svg-stage"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${edges}${nodes}</svg></div>`;
+    }
+
+    let currentAlgo = "bubble";
+    let currentPreset = "random";
+    let currentData = genPreset("random");
+
+    const barsEl = document.getElementById("sortBars");
+    const extraEl = document.getElementById("sortExtraStage");
+    const stageTitleEl = document.getElementById("sortStageTitle");
+    const metricsEl = document.getElementById("sortMetrics");
+    const profileEl = document.getElementById("sortProfile");
+    const varsEl = document.getElementById("sortVars");
+    const explainEl = document.getElementById("sortExplain");
+    const codeEl = document.getElementById("sortCode");
+    const codeTagEl = document.getElementById("sortCodeTag");
+
+    const player = new FramePlayer("player-sort", (frame) => {
+      const a = frame.arr;
+      const maxVal = Math.max(100, ...a);
+      barsEl.innerHTML = a.map((val, i) => {
+        const st = frame.states[i] || "default";
+        const hPct = Math.max(16, Math.round((val / maxVal) * 100));
+        const ptr = frame.ptrs && frame.ptrs[i];
+        return `
+          <div class="bar-col">
+            ${ptr ? `<div class="bar-ptr ${ptr.c}">${escHtml(ptr.t)}</div>` : ""}
+            <div class="bar-rect st-${st}" style="height:${hPct}%">${val}</div>
+            <div class="bar-idx">[${i}]</div>
+          </div>`;
+      }).join("");
+
+      if (frame.isHeap) {
+        extraEl.innerHTML = renderHeapTreeSvg(frame);
+      } else if (frame.mergeAux) {
+        const cells = frame.mergeAux.items.length
+          ? frame.mergeAux.items.map(v => `<div class="merge-cell">${v}</div>`).join("")
+          : '<span class="empty-hint">等待写入…</span>';
+        extraEl.innerHTML = `
+          <div class="merge-aux-row">
+            <span style="font-size:12.5px;font-weight:700;color:#6d28d9;">辅助数组 tmp[] (归并区间 ${escHtml(frame.mergeAux.range)})：</span>
+            ${cells}
+          </div>`;
+      } else {
+        extraEl.innerHTML = "";
+      }
+
+      metricsEl.innerHTML = `
+        <div class="metric-box"><div class="metric-lbl">比较次数</div><div class="metric-val" style="color:#d97706">${frame.cmp}</div></div>
+        <div class="metric-box"><div class="metric-lbl">移动 / 写入</div><div class="metric-val" style="color:#dc2626">${frame.mov}</div></div>
+        <div class="metric-box"><div class="metric-lbl">数组长度 n</div><div class="metric-val" style="color:#2563eb">${a.length}</div></div>
+      `;
+
+      const prof = PROFILES[currentAlgo];
+      profileEl.innerHTML = `
+        <span class="tag-pill tag-blue">时间: ${prof.time}</span>
+        <span class="tag-pill tag-slate">空间: ${prof.space}</span>
+        <span class="tag-pill ${prof.stable === '稳定' ? 'tag-green' : 'tag-amber'}">${prof.stable}排序</span>
+      `;
+      renderVars(varsEl, frame.vars);
+      renderExplain(explainEl, frame);
+      renderCode(codeEl, CODES[currentAlgo], frame.codeLines, false);
+    }, 620);
+    players.sort = player;
+
+    function rebuild(regenData = false) {
+      if (regenData) currentData = genPreset(currentPreset);
+      document.querySelectorAll("#sortAlgoGroup .btn").forEach(b => b.classList.toggle("active", b.dataset.algo === currentAlgo));
+      document.querySelectorAll("#sortDataGroup .btn").forEach(b => b.classList.toggle("active", b.dataset.preset === currentPreset));
+      const prof = PROFILES[currentAlgo];
+      stageTitleEl.textContent = `${prof.name} · 动态柱状图`;
+      codeTagEl.textContent = prof.tag;
+
+      let frames = [];
+      if (currentAlgo === "bubble") frames = recordBubble(currentData);
+      else if (currentAlgo === "insert") frames = recordInsert(currentData);
+      else if (currentAlgo === "select") frames = recordSelect(currentData);
+      else if (currentAlgo === "quick") frames = recordQuick(currentData);
+      else if (currentAlgo === "heap") frames = recordHeap(currentData);
+      else frames = recordMerge(currentData);
+
+      player.setFrames(frames, false, 0);
+    }
+
+    document.querySelectorAll("#sortAlgoGroup .btn").forEach(b => {
+      b.addEventListener("click", () => { currentAlgo = b.dataset.algo; rebuild(false); });
+    });
+    document.querySelectorAll("#sortDataGroup .btn").forEach(b => {
+      b.addEventListener("click", () => { currentPreset = b.dataset.preset; rebuild(true); });
+    });
+
+    rebuild(false);
+    return { player };
+  })();
+
+  /* ============================================================================
+   * 顶部标签页切换 & 全局键盘快捷键
+   * ============================================================================ */
+  function switchTab(tabId) {
+    Object.values(players).forEach(p => p.pause());
+    activeTab = tabId;
+    document.querySelectorAll("#mainTabBar .tab-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.tab === tabId);
+    });
+    document.querySelectorAll(".module-pane").forEach(p => {
+      p.classList.toggle("active", p.id === "pane-" + tabId);
+    });
+  }
+
+  document.querySelectorAll("#mainTabBar .tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+
+  document.addEventListener("keydown", (e) => {
+    const tag = (e.target && e.target.tagName || "").toUpperCase();
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+    const p = players[activeTab];
+    if (!p) return;
+    if (e.key === "ArrowLeft") { e.preventDefault(); p.prev(); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); p.next(); }
+    else if (e.key === " ") { e.preventDefault(); p.togglePlay(); }
+  });
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>《数据结构与算法》全书交互式自学学院</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- 顶部常驻导航栏 -->
+  <header id="app-header" class="app-header">
+    <div class="header-inner">
+      <a href="#dashboard" class="brand" id="brand-link" title="回到学习星图">
+        <span class="brand-logo" aria-hidden="true">DS</span>
+        <span class="brand-text">
+          <span class="brand-title">数据结构与算法</span>
+          <span class="brand-sub">交互自学学院</span>
+        </span>
+      </a>
+
+      <nav class="main-nav" id="main-nav" aria-label="主导航">
+        <button class="nav-btn active" data-route="dashboard" type="button">
+          <span class="nav-ico">🏠</span><span class="nav-label">学习星图</span>
+        </button>
+        <button class="nav-btn" data-route="reader" type="button">
+          <span class="nav-ico">📖</span><span class="nav-label">全书精读</span>
+        </button>
+        <button class="nav-btn" data-route="viz" type="button">
+          <span class="nav-ico">🎬</span><span class="nav-label">动画实验室</span>
+        </button>
+        <button class="nav-btn" data-route="lab" type="button">
+          <span class="nav-ico">💻</span><span class="nav-label">15关代码评测</span>
+        </button>
+        <button class="nav-btn" data-route="quiz" type="button">
+          <span class="nav-ico">🎮</span><span class="nav-label">刷题与诊所</span>
+        </button>
+        <button class="nav-btn" data-route="ref" type="button">
+          <span class="nav-ico">📚</span><span class="nav-label">速查与习题</span>
+        </button>
+      </nav>
+
+      <div class="header-actions">
+        <button class="search-trigger" id="btn-open-search" type="button" title="全局搜索 (Ctrl+K)">
+          <span class="search-ico">🔍</span>
+          <span class="search-placeholder">搜索全书…</span>
+          <kbd class="kbd">Ctrl K</kbd>
+        </button>
+
+        <button class="xp-pill" id="xp-pill" type="button" title="查看段位与成就">
+          <span class="xp-lv" id="hdr-level">Lv.1 指针萌新</span>
+          <span class="xp-bar-mini"><span class="xp-bar-fill" id="hdr-xp-fill" style="width:0%"></span></span>
+          <span class="xp-num" id="hdr-xp">0 XP</span>
+        </button>
+
+        <button class="server-pill offline" id="server-pill" type="button" title="点击检测本地 g++ 编译评测服务">
+          <span class="status-dot" id="server-dot"></span>
+          <span class="server-label" id="server-label">检测中…</span>
+        </button>
+
+        <button class="icon-btn" id="btn-theme" type="button" title="切换亮色 / 暗黑护眼模式" aria-label="切换主题">
+          <span id="theme-icon">🌙</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主内容挂载区 -->
+  <main id="app-main" class="app-main" tabindex="-1">
+    <div class="boot-loading">
+      <div class="spinner"></div>
+      <p>正在装载全书知识库与交互实验室…</p>
+    </div>
+  </main>
+
+  <!-- 全局 Ctrl+K 闪电搜索弹窗 -->
+  <div id="search-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="search-input">
+    <div class="search-dialog">
+      <div class="search-input-row">
+        <span class="search-dialog-ico">🔍</span>
+        <input id="search-input" class="search-input" type="text" autocomplete="off"
+               placeholder="搜知识点、章节标题、Mermaid、15关实验、30演示代码、闪卡… (如：KMP、链表、哈夫曼、复杂度)" />
+        <button class="search-close-btn" id="btn-close-search" type="button" title="关闭 (Esc)">ESC</button>
+      </div>
+      <div class="search-filter-bar" id="search-filter-bar">
+        <button class="chip active" data-scope="all" type="button">全部</button>
+        <button class="chip" data-scope="chapter" type="button">📖 笔记与习题</button>
+        <button class="chip" data-scope="lab" type="button">💻 15关实验</button>
+        <button class="chip" data-scope="demo" type="button">📦 30演示代码</button>
+        <button class="chip" data-scope="card" type="button">🃏 核心闪卡</button>
+      </div>
+      <div id="search-results" class="search-results"></div>
+      <div class="search-footer">
+        <span><kbd>↑</kbd><kbd>↓</kbd> 切换</span>
+        <span><kbd>Enter</kbd> 直达</span>
+        <span><kbd>Esc</kbd> 关闭</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 服务状态提示弹窗 -->
+  <div id="server-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="info-dialog">
+      <div class="info-dialog-head">
+        <h3>⚙️ 本地 g++ 编译评测服务状态</h3>
+        <button class="icon-btn-sm" id="btn-close-server-modal" type="button">✕</button>
+      </div>
+      <div id="server-modal-body" class="info-dialog-body"></div>
+    </div>
+  </div>
+
+  <!-- 全局 Toast 与 庆祝烟花画布 -->
+  <div id="ds-toast-container" class="ds-toast-container" aria-live="polite"></div>
+  <canvas id="ds-confetti-canvas" class="ds-confetti-canvas"></canvas>
+
+  <!-- 100% 离线数据与模块加载（严格顺序，零外网 CDN） -->
+  <script src="data/manifest.js"></script>
+  <script src="data/chapters_0_3.js"></script>
+  <script src="data/chapters_4_7.js"></script>
+  <script src="data/extras.js"></script>
+  <script src="data/labs_data.js"></script>
+  <script src="data/demos_data.js"></script>
+  <script src="data/quizzes.js"></script>
+
+  <script src="js/gamify.js"></script>
+  <script src="js/md_renderer.js"></script>
+  <script src="js/visualizers.js"></script>
+  <script src="js/quiz_view.js"></script>
+  <script src="js/reader_view.js"></script>
+  <script src="js/lab_view.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

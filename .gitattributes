@@ -1,0 +1,21 @@
+# 默认自动检测文本文件并规范化换行符
+* text=auto
+
+# Windows 批处理脚本必须使用 CRLF，防止 cmd.exe 解析异常
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 文档与源代码统一使用 LF
+*.md text eol=lf
+*.cpp text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.hpp text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.sh text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
