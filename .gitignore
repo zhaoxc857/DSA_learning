@@ -1,6 +1,10 @@
 # 学习进度与本地评测状态
 labs/.progress.json
 .progress.json
+学习网站/.server.log
+学习网站/.server.pid
+.server.*
+*.log
 
 # Python 编译与缓存产物
 __pycache__/

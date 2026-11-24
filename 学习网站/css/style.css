@@ -325,6 +325,13 @@ button {
   transition: width 0.35s ease;
 }
 
+.server-control-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .server-pill {
   display: inline-flex;
   align-items: center;
@@ -337,6 +344,31 @@ button {
   font-size: 11.5px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.server-shutdown-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.server-shutdown-btn:hover {
+  border-color: var(--red-border);
+  background: var(--red-bg);
+  color: var(--red);
+}
+.server-shutdown-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
 }
 .server-pill.online {
   border-color: var(--green-border);

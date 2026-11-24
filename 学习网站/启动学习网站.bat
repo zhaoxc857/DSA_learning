@@ -2,8 +2,31 @@
 chcp 65001 >nul
 set PYTHONUTF8=1
 cd /d "%~dp0"
-title DS-Algorithm Study Site
 
+if "%~1"=="" goto :launch_silent
+goto :launch_foreground
+
+:launch_silent
+if exist "%~dpn0.vbs" goto :run_vbs
+set "PYW_CMD="
+where pythonw >nul 2>nul
+if not errorlevel 1 set "PYW_CMD=pythonw"
+if not "%PYW_CMD%"=="" goto :run_pyw
+where pyw >nul 2>nul
+if not errorlevel 1 set "PYW_CMD=pyw -3"
+if not "%PYW_CMD%"=="" goto :run_pyw
+goto :launch_foreground
+
+:run_vbs
+start "" wscript.exe //nologo "%~dpn0.vbs"
+exit /b 0
+
+:run_pyw
+start "" %PYW_CMD% "%~dp0server.py" --background
+exit /b 0
+
+:launch_foreground
+title DS-Algorithm Study Site
 set "PY_CMD="
 where python >nul 2>nul
 if not errorlevel 1 set "PY_CMD=python"

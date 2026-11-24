@@ -5,13 +5,15 @@
 
 特性：
   - 纯 Python 标准库实现（零第三方依赖）
-  - 默认监听 127.0.0.1:8765，支持 --port 与 --no-browser，默认自动打开浏览器
+  - 默认监听 127.0.0.1:8765，支持 --port、--no-browser、--background、--debug
+  - 全面兼容 pythonw.exe 无终端后台静默运行（自动单实例检测 + 无黑框编译 + .server.pid/.server.log）
   - 静态托管 学习网站/ 目录（全 UTF-8 MIME 支持）
   - API 端点：
-      GET  /api/health    环境与 g++ 健康检查
+      GET  /api/health    环境与 g++ 健康检查（含 canShutdown、pid）
       GET  /api/progress  读取 ../labs/.progress.json 进度
       POST /api/judge     真 g++ 编译运行 15 关评测 + 更新进度 + 可选安全写回 todo.cpp
       POST /api/run-demo  真 g++ 编译运行任意 C++11 演示代码（超时 8 秒）
+      POST /api/shutdown  仅限本机安全关闭后台评测服务
 """
 
 import argparse
@@ -25,6 +27,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import urllib.request
 import webbrowser
 from datetime import datetime
 from http import HTTPStatus
@@ -37,10 +40,13 @@ ROOT_DIR = os.path.dirname(SITE_DIR)
 LABS_DIR = os.path.join(ROOT_DIR, "labs")
 COMMON_DIR = os.path.join(LABS_DIR, "common")
 PROGRESS_FILE = os.path.join(LABS_DIR, ".progress.json")
+PID_FILE = os.path.join(SITE_DIR, ".server.pid")
+LOG_FILE = os.path.join(SITE_DIR, ".server.log")
 
 RUN_TIMEOUT_SEC = 8
 COMPILE_TIMEOUT_SEC = 25
 MAX_REQUEST_BYTES = 2 * 1024 * 1024  # 2 MB
+SUBPROCESS_FLAGS = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
 
 # 与 labs/judge.py 严格一致的 15 关映射表
 LAB_FOLDERS: Dict[str, str] = {
@@ -105,6 +111,7 @@ def detect_gpp(force: bool = False) -> Dict[str, Any]:
                 encoding="utf-8",
                 errors="replace",
                 timeout=5,
+                creationflags=SUBPROCESS_FLAGS,
             )
             if r.returncode == 0:
                 gpp_ok = True
@@ -120,6 +127,8 @@ def detect_gpp(force: bool = False) -> Dict[str, Any]:
             "gppVersion": gpp_version,
             "pythonVersion": sys.version.split()[0],
             "labsCount": len(LAB_FOLDERS),
+            "canShutdown": True,
+            "pid": os.getpid(),
         }
         return dict(_ENV_CACHE)
 
@@ -305,6 +314,7 @@ def judge_lab(lab_id: str, code: str, save_to_disk: bool = False) -> Dict[str, A
                 encoding="utf-8",
                 errors="replace",
                 timeout=COMPILE_TIMEOUT_SEC,
+                creationflags=SUBPROCESS_FLAGS,
             )
         except FileNotFoundError:
             update_progress(lab_id, "compile_error", 0, 0)
@@ -368,6 +378,7 @@ def judge_lab(lab_id: str, code: str, save_to_disk: bool = False) -> Dict[str, A
                 encoding="utf-8",
                 errors="replace",
                 timeout=RUN_TIMEOUT_SEC,
+                creationflags=SUBPROCESS_FLAGS,
             )
         except subprocess.TimeoutExpired as te:
             partial_out = ""
@@ -439,6 +450,7 @@ def run_demo_code(code: str) -> Dict[str, Any]:
                 encoding="utf-8",
                 errors="replace",
                 timeout=COMPILE_TIMEOUT_SEC,
+                creationflags=SUBPROCESS_FLAGS,
             )
         except FileNotFoundError:
             return {
@@ -479,6 +491,7 @@ def run_demo_code(code: str) -> Dict[str, Any]:
                 encoding="utf-8",
                 errors="replace",
                 timeout=RUN_TIMEOUT_SEC,
+                creationflags=SUBPROCESS_FLAGS,
             )
         except subprocess.TimeoutExpired as te:
             p_out = ""
@@ -510,11 +523,14 @@ class StudySiteHandler(BaseHTTPRequestHandler):
     server_version = "DSStudySite/1.0"
 
     def log_message(self, format: str, *args: Any) -> None:
-        # 简洁 UTF-8 日志
-        msg = format % args
+        # 简洁 UTF-8 日志（兼容 pythonw.exe 无控制台句柄）
+        out = sys.stdout
+        if out is None:
+            return
         try:
-            sys.stdout.write(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}\n")
-            sys.stdout.flush()
+            msg = format % args
+            out.write(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}\n")
+            out.flush()
         except Exception:
             pass
 
@@ -603,6 +619,19 @@ class StudySiteHandler(BaseHTTPRequestHandler):
             self._send_json(HTTPStatus.OK, result)
             return
 
+        if req_path == "/api/shutdown":
+            client_ip = (self.client_address[0] if self.client_address else "").strip()
+            if client_ip not in ("127.0.0.1", "::1", "localhost"):
+                self._send_json(HTTPStatus.FORBIDDEN, {"ok": False, "error": "仅允许本机请求关闭后台服务"})
+                return
+            self._send_json(HTTPStatus.OK, {"ok": True, "message": "后台评测服务已安全关闭"})
+            try:
+                self.wfile.flush()
+            except Exception:
+                pass
+            threading.Timer(0.15, self.server.shutdown).start()
+            return
+
         self._send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": f"未知接口: {req_path}"})
 
     def _serve_static(self, req_path: str) -> None:
@@ -656,21 +685,106 @@ class ReusableThreadingHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
 
 
+def probe_existing_server(host: str, port: int) -> bool:
+    """快速探测指定端口是否已有本服务在运行（超时 0.5 秒）。"""
+    probe_host = "127.0.0.1" if host in ("0.0.0.0", "::", "") else host
+    probe_url = f"http://{probe_host}:{port}/api/health"
+    try:
+        req = urllib.request.Request(probe_url, method="GET")
+        with urllib.request.urlopen(req, timeout=0.5) as resp:
+            if resp.status == 200:
+                payload = json.loads(resp.read().decode("utf-8", errors="replace"))
+                return isinstance(payload, dict) and payload.get("ok") is True
+    except Exception:
+        return False
+    return False
+
+
+def write_pid_file() -> None:
+    try:
+        with open(PID_FILE, "w", encoding="utf-8", newline="\n") as f:
+            f.write(str(os.getpid()) + "\n")
+    except Exception:
+        pass
+
+
+def cleanup_pid_file() -> None:
+    try:
+        if not os.path.exists(PID_FILE):
+            return
+        with open(PID_FILE, "r", encoding="utf-8") as f:
+            recorded = f.read().strip()
+        if recorded == str(os.getpid()):
+            os.remove(PID_FILE)
+    except Exception:
+        pass
+
+
 def main() -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        try:
-            sys.stdout.reconfigure(encoding="utf-8")
-        except Exception:
-            pass
+    # 先记住启动时是否无控制台句柄（如 pythonw.exe）
+    no_console = (sys.stdout is None) or (sys.stderr is None)
+    devnull_handles = []
+    if sys.stdout is None:
+        h = open(os.devnull, "w", encoding="utf-8")
+        sys.stdout = h
+        devnull_handles.append(h)
+    if sys.stderr is None:
+        h = open(os.devnull, "w", encoding="utf-8")
+        sys.stderr = h
+        devnull_handles.append(h)
 
     parser = argparse.ArgumentParser(description="《数据结构与算法》互动学习网站本地服务器")
     parser.add_argument("--host", default="127.0.0.1", help="监听地址（默认 127.0.0.1）")
     parser.add_argument("--port", type=int, default=8765, help="监听端口（默认 8765）")
     parser.add_argument("--no-browser", action="store_true", help="启动后不自动打开浏览器")
+    parser.add_argument("--background", action="store_true", help="后台静默模式（日志写入 .server.log）")
+    parser.add_argument("--debug", action="store_true", help="前台调试模式（输出日志到当前终端）")
     args = parser.parse_args()
 
-    env = detect_gpp(force=True)
     url = f"http://{args.host}:{args.port}/"
+
+    # 单实例检测：如果服务已在目标端口运行，则直接打开浏览器并干净退出 0
+    if probe_existing_server(args.host, args.port):
+        if not args.no_browser:
+            try:
+                webbrowser.open(url)
+            except Exception:
+                pass
+        for h in devnull_handles:
+            try:
+                h.close()
+            except Exception:
+                pass
+        return 0
+
+    log_handle = None
+    use_log_file = (no_console or args.background) and (not args.debug)
+    if use_log_file:
+        try:
+            log_handle = open(LOG_FILE, "w", encoding="utf-8", buffering=1, newline="\n")
+            sys.stdout = log_handle
+            sys.stderr = log_handle
+        except Exception:
+            pass
+    else:
+        if hasattr(sys.stdout, "reconfigure"):
+            try:
+                sys.stdout.reconfigure(encoding="utf-8")
+            except Exception:
+                pass
+        if hasattr(sys.stderr, "reconfigure"):
+            try:
+                sys.stderr.reconfigure(encoding="utf-8")
+            except Exception:
+                pass
+
+    for h in devnull_handles:
+        try:
+            h.close()
+        except Exception:
+            pass
+
+    env = detect_gpp(force=True)
 
     try:
         server = ReusableThreadingHTTPServer((args.host, args.port), StudySiteHandler)
@@ -680,17 +794,28 @@ def main() -> int:
         print(f"  请检查端口 {args.port} 是否已被占用，或使用其他端口启动：")
         print(f"    启动学习网站.bat --port {args.port + 1}")
         print("============================================================")
+        if log_handle is not None:
+            try:
+                log_handle.close()
+            except Exception:
+                pass
         return 1
+
+    write_pid_file()
 
     print("============================================================")
     print("  《数据结构与算法》互动学习网站 —— 本地评测服务已启动")
     print(f"  访问地址: {url}")
+    print(f"  进程 PID: {os.getpid()}")
     print(f"  Python  : {env['pythonVersion']}")
     print(f"  g++     : {env['gppVersion'] if env['gpp'] else '未检测到（仅浏览模式）'}")
     if not args.no_browser:
         print("  浏览器  : 正在自动打开学习网站...")
-    print("  提示    : 保持此窗口运行即可使用网页内真 g++ 评测，关闭窗口即停止服务")
-    print("  按 Ctrl+C 也可安全停止服务")
+    if use_log_file:
+        print("  运行模式: 无终端后台静默运行（可在网页顶栏点击关闭按钮或双击 停止学习网站.vbs 停止）")
+    else:
+        print("  提示    : 保持此窗口运行即可使用网页内真 g++ 评测，关闭窗口即停止服务")
+        print("  按 Ctrl+C 也可安全停止服务")
     print("============================================================")
     sys.stdout.flush()
 
@@ -703,6 +828,13 @@ def main() -> int:
         print("\n正在关闭服务...")
     finally:
         server.server_close()
+        cleanup_pid_file()
+        if log_handle is not None:
+            try:
+                log_handle.flush()
+                log_handle.close()
+            except Exception:
+                pass
     return 0
 
 

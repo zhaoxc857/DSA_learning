@@ -212,7 +212,7 @@
     return (
       '<div class="offline-banner">' +
         '<h4>📦 当前为纯离线预览模式（未连接本地 server.py）</h4>' +
-        '<p style="margin:0 0 8px;">双击 <code>学习网站/启动学习网站.bat</code>（或在终端运行 <code>python server.py</code>）后访问 <code>http://127.0.0.1:8765</code>，即可在网页内开启 <strong>真 g++ 一键编译评测</strong>！</p>' +
+        '<p style="margin:0 0 8px;">双击 <code>学习网站/启动学习网站.vbs</code>（无黑框）或 <code>学习网站/启动学习网站.bat</code>（或在终端运行 <code>python server.py</code>）后访问 <code>http://127.0.0.1:8765</code>，即可在网页内开启 <strong>真 g++ 一键编译评测</strong>！</p>' +
         '<p style="margin:0 0 10px;color:var(--text-sub);">离线模式下你依然可以畅写代码（自动保存草稿）、看分步思路提示、对照参考答案，或一键导出到本地评测：</p>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
           '<button type="button" class="btn btn-sm btn-primary" id="btn-offline-download">⬇ 下载当前代码 (.cpp)</button>' +
@@ -396,7 +396,7 @@
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
           (srv.online && srv.gpp
             ? '<span class="badge badge-green">🟢 g++ 在线评测就绪 · ' + escapeHtml(srv.gppVersion || 'g++') + '</span>'
-            : '<span class="badge badge-amber">📦 纯离线预览模式（双击 启动学习网站.bat 开启真编译）</span>') +
+            : '<span class="badge badge-amber">📦 纯离线预览模式（双击 启动学习网站.vbs（无黑框）或 启动学习网站.bat 开启真编译）</span>') +
         '</div>' +
       '</div>';
 
@@ -557,7 +557,7 @@
       var code = editorEl.value;
       localStorage.setItem(DRAFT_PREFIX + curLab.id, code);
       if (!curSrv.online || !curSrv.gpp) {
-        notify('当前为离线模式，请双击「启动学习网站.bat」开启本地 g++ 评测，或点击右侧下载代码！', 'warn');
+        notify('当前为离线模式，请双击「启动学习网站.vbs（无黑框）」或「启动学习网站.bat」开启本地 g++ 评测，或点击右侧下载代码！', 'warn');
         return;
       }
       if (state.running) return;
@@ -769,7 +769,7 @@
       var code = editorEl.value;
       localStorage.setItem(DEMO_DRAFT_PREFIX + curDemo.filename, code);
       if (!curSrv.online || !curSrv.gpp) {
-        notify('当前为离线模式，请双击「启动学习网站.bat」后即可一键运行 C++ 演示代码！', 'warn');
+        notify('当前为离线模式，请双击「启动学习网站.vbs（无黑框）」或「启动学习网站.bat」后即可一键运行 C++ 演示代码！', 'warn');
         return;
       }
       if (state.running) return;

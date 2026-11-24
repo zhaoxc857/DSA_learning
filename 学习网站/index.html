@@ -52,10 +52,14 @@
           <span class="xp-num" id="hdr-xp">0 XP</span>
         </button>
 
-        <button class="server-pill offline" id="server-pill" type="button" title="点击检测本地 g++ 编译评测服务">
-          <span class="status-dot" id="server-dot"></span>
-          <span class="server-label" id="server-label">检测中…</span>
-        </button>
+        <div class="server-control-group" id="server-control-group">
+          <button class="server-pill offline" id="server-pill" type="button" title="点击检测本地 g++ 编译评测服务">
+            <span class="status-dot" id="server-dot"></span>
+            <span class="server-label" id="server-label">检测中…</span>
+          </button>
+          <button class="server-shutdown-btn hidden" id="btn-shutdown-server" type="button"
+                  title="安全关闭后台 g++ 评测服务" aria-label="安全关闭后台 g++ 评测服务">⏻</button>
+        </div>
 
         <button class="icon-btn" id="btn-theme" type="button" title="切换亮色 / 暗黑护眼模式" aria-label="切换主题">
           <span id="theme-icon">🌙</span>

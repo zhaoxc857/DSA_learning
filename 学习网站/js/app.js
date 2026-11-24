@@ -14,6 +14,8 @@
     gppVersion: '',
     pythonVersion: '',
     labsCount: 15,
+    canShutdown: false,
+    pid: null,
     isFileProtocol: location.protocol === 'file:'
   };
 
@@ -132,6 +134,7 @@
   function updateServerPill() {
     var pill = document.getElementById('server-pill');
     var label = document.getElementById('server-label');
+    var btnShutdown = document.getElementById('btn-shutdown-server');
     if (!pill || !label) return;
     pill.classList.remove('online', 'warn', 'offline');
     if (serverStatus.online && serverStatus.gpp) {
@@ -145,15 +148,63 @@
     } else {
       pill.classList.add('offline');
       label.textContent = '离线模式';
-      pill.title = '当前为纯离线模式，双击 启动学习网站.bat 开启网页内真 g++ 评测';
+      pill.title = '当前为纯离线模式，双击 启动学习网站.vbs（无黑框）或 启动学习网站.bat 开启网页内真 g++ 评测';
     }
+    if (btnShutdown) {
+      btnShutdown.classList.toggle('hidden', !(serverStatus.online && serverStatus.canShutdown !== false));
+    }
+  }
+
+  function shutdownServer() {
+    if (!serverStatus.online) return Promise.resolve(false);
+    var ok = confirm('确定关闭后台本地 g++ 评测服务吗？\n关闭后仍可离线阅读与看动画，随时双击「启动学习网站.vbs」即可重新开启。');
+    if (!ok) return Promise.resolve(false);
+
+    var btnShutdown = document.getElementById('btn-shutdown-server');
+    if (btnShutdown) btnShutdown.disabled = true;
+
+    return fetch('/api/shutdown', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json().catch(function () { return { ok: true }; });
+      })
+      .then(function () {
+        serverStatus = {
+          online: false,
+          gpp: false,
+          gppVersion: '',
+          pythonVersion: '',
+          labsCount: serverStatus.labsCount || 15,
+          canShutdown: false,
+          pid: null,
+          isFileProtocol: false
+        };
+        if (btnShutdown) btnShutdown.disabled = false;
+        updateServerPill();
+        var srvModal = document.getElementById('server-modal');
+        if (srvModal) srvModal.classList.add('hidden');
+        if (currentRoute === 'lab') {
+          renderCurrentView();
+        }
+        toast('后台评测服务已安全关闭，可随时双击「启动学习网站.vbs」重启', 'info');
+        return true;
+      })
+      .catch(function (err) {
+        if (btnShutdown) btnShutdown.disabled = false;
+        toast('关闭后台服务失败：' + (err && err.message ? err.message : '请求异常'), 'error');
+        return false;
+      });
   }
 
   function checkServer(showToast) {
     if (location.protocol === 'file:') {
-      serverStatus = { online: false, gpp: false, gppVersion: '', pythonVersion: '', labsCount: 15, isFileProtocol: true };
+      serverStatus = { online: false, gpp: false, gppVersion: '', pythonVersion: '', labsCount: 15, canShutdown: false, pid: null, isFileProtocol: true };
       updateServerPill();
-      if (showToast) toast('当前通过 file:// 离线打开，双击 启动学习网站.bat 即可开启在线评测', 'info');
+      if (showToast) toast('当前通过 file:// 离线打开，双击 启动学习网站.vbs（无黑框）或 启动学习网站.bat 即可开启在线评测', 'info');
       return Promise.resolve(serverStatus);
     }
 
@@ -173,6 +224,8 @@
           gppVersion: (data && data.gppVersion) || '',
           pythonVersion: (data && data.pythonVersion) || '',
           labsCount: (data && data.labsCount) || 15,
+          canShutdown: data && data.canShutdown !== undefined ? !!data.canShutdown : !!(data && data.ok),
+          pid: (data && data.pid) || null,
           isFileProtocol: false
         };
         updateServerPill();
@@ -183,7 +236,7 @@
       })
       .catch(function () {
         if (timer) clearTimeout(timer);
-        serverStatus = { online: false, gpp: false, gppVersion: '', pythonVersion: '', labsCount: 15, isFileProtocol: false };
+        serverStatus = { online: false, gpp: false, gppVersion: '', pythonVersion: '', labsCount: 15, canShutdown: false, pid: null, isFileProtocol: false };
         updateServerPill();
         if (showToast) toast('未检测到本地 server.py，当前处于离线模式', 'warn');
         return serverStatus;
@@ -201,8 +254,10 @@
         '</div>' +
         '<p><strong>编译器：</strong><code>' + escapeHtml(serverStatus.gppVersion || 'g++') + '</code></p>' +
         '<p><strong>Python 环境：</strong><code>' + escapeHtml(serverStatus.pythonVersion || 'Python 3') + '</code></p>' +
+        (serverStatus.pid ? '<p><strong>后台进程 PID：</strong><code>' + escapeHtml(serverStatus.pid) + '</code></p>' : '') +
         '<p><strong>可用实验关卡：</strong>' + serverStatus.labsCount + ' 关（支持 <code>POST /api/judge</code> 与 <code>POST /api/run-demo</code>）</p>' +
-        '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">' +
+        '<div style="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:16px;">' +
+          '<button type="button" class="btn btn-sm btn-danger" id="btn-modal-shutdown">⏻ 关闭后台服务</button>' +
           '<button type="button" class="btn btn-sm" id="btn-modal-recheck">🔄 重新检测</button>' +
           '<button type="button" class="btn btn-sm btn-primary" id="btn-modal-go-lab">💻 去写代码闯关</button>' +
         '</div>';
@@ -214,7 +269,7 @@
         '</div>' +
         '<p><strong>如何开启网页内真 g++ 一键编译评测？</strong></p>' +
         '<ol style="padding-left:20px;margin:6px 0 14px;">' +
-          '<li>在资源管理器中双击 <code>学习网站/启动学习网站.bat</code>；</li>' +
+          '<li>在资源管理器中双击 <code>学习网站/启动学习网站.vbs</code>（无黑框静默启动）或 <code>学习网站/启动学习网站.bat</code>；</li>' +
           '<li>或在终端进入 <code>学习网站</code> 目录执行：<code>python server.py</code>；</li>' +
           '<li>浏览器自动打开 <code>http://127.0.0.1:8765</code> 后即可在线编译评测！</li>' +
         '</ol>' +
@@ -226,6 +281,10 @@
     var btnRe = document.getElementById('btn-modal-recheck');
     if (btnRe) btnRe.addEventListener('click', function () {
       checkServer(true).then(openServerModal);
+    });
+    var btnShut = document.getElementById('btn-modal-shutdown');
+    if (btnShut) btnShut.addEventListener('click', function () {
+      shutdownServer();
     });
     var btnGo = document.getElementById('btn-modal-go-lab');
     if (btnGo) btnGo.addEventListener('click', function () {
@@ -1062,6 +1121,9 @@
     var srvPill = document.getElementById('server-pill');
     if (srvPill) srvPill.addEventListener('click', openServerModal);
 
+    var btnShutdown = document.getElementById('btn-shutdown-server');
+    if (btnShutdown) btnShutdown.addEventListener('click', shutdownServer);
+
     var srvModal = document.getElementById('server-modal');
     var btnCloseSrv = document.getElementById('btn-close-server-modal');
     if (btnCloseSrv && srvModal) btnCloseSrv.addEventListener('click', function () { srvModal.classList.add('hidden'); });
@@ -1096,6 +1158,7 @@
     navigate: navigate,
     getServerStatus: function () { return serverStatus; },
     checkServer: checkServer,
+    shutdownServer: shutdownServer,
     toast: toast,
     celebrate: celebrate,
     openSearch: openSearchModal

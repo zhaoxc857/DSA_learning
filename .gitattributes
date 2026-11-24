@@ -1,9 +1,10 @@
 # 默认自动检测文本文件并规范化换行符
 * text=auto
 
-# Windows 批处理脚本必须使用 CRLF，防止 cmd.exe 解析异常
+# Windows 批处理与脚本必须使用 CRLF，防止 cmd.exe / wscript.exe 解析异常
 *.bat text eol=crlf
 *.cmd text eol=crlf
+*.vbs text eol=crlf
 
 # 文档与源代码统一使用 LF
 *.md text eol=lf
