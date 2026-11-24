@@ -28,6 +28,28 @@
 
 ---
 
+## 🖥️ Tauri 2 原生桌面 App（`desktop-app/`）
+
+除了网页版与离线版，本项目还提供基于 **Tauri 2 + Rust + WebView2** 打包的 Windows 原生桌面客户端（与 `学习网站/` 共用同一套前端 `DSBackend` 桥接层，三端无缝兼容）：
+
+- **Rust 原生直连本机 `g++`**：自动探测系统 `PATH` 及常见 MSYS2 / MinGW / Dev-Cpp 安装路径，内嵌 `test_kit.h`，15 关实验评测与 30 份代码演示直接运行；
+- **零 Python 依赖、免本地端口**：无需安装 Python，不占用本地 HTTP 端口，关窗即退出；
+- **全程无黑框**：采用 `windows_subsystem = "windows"` 且所有子进程启用 `CREATE_NO_WINDOW`，启动与编译评测均零控制台闪烁；
+- **轻量小体积**：便携单文件 `.exe` 仅约 **7.2 MB**，NSIS 安装包仅约 **2.2 MB**，独立运行自动将学习进度持久化到本地应用数据目录。
+
+### 下载或自行构建
+
+- **直接下载（推荐）**：前往本仓库 [GitHub Releases](https://github.com/zhaoxc857/DSA_learning/releases) 下载 Windows 便携单文件版（`数据结构与算法互动自学学院.exe`）或中文安装程序（`DSA-Learning_1.0.0_x64-setup.exe`），双击即用。
+- **本地一键构建**（需已安装 [Rust](https://www.rust-lang.org/) 与 [Node.js](https://nodejs.org/)）：
+  ```bash
+  cd desktop-app
+  npm install
+  npm run build
+  ```
+  构建过程会自动执行 `python sync_web.py` 同步最新 `学习网站/` 前端资源与 `test_kit.h`，生成的可执行文件与 NSIS 安装包位于 `desktop-app/src-tauri/target/release/` 与 `bundle/nsis/`。
+
+---
+
 ## 一、这套笔记怎么用（先读这 3 分钟）
 
 ### 1. 你不需要很聪明，但需要按顺序来

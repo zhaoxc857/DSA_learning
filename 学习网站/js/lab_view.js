@@ -86,7 +86,7 @@
     if (global.DSApp && typeof global.DSApp.getServerStatus === 'function') {
       return global.DSApp.getServerStatus();
     }
-    return { online: false, gpp: false, gppVersion: '' };
+    return { online: false, mode: 'offline', gpp: false, gppVersion: '' };
   }
 
   function isLabPassed(labId) {
@@ -124,9 +124,12 @@
 
   function syncServerProgress() {
     var srv = getServerStatus();
-    if (!srv.online) return Promise.resolve();
-    return fetch('/api/progress')
-      .then(function (r) { return r.ok ? r.json() : null; })
+    var isTauri = srv.mode === 'tauri' || (global.DSBackend && global.DSBackend.isTauri());
+    if (!srv.online && !isTauri) return Promise.resolve();
+    var req = (global.DSBackend && typeof global.DSBackend.getProgress === 'function')
+      ? global.DSBackend.getProgress()
+      : Promise.resolve(null);
+    return req
       .then(function (data) {
         if (!data || typeof data !== 'object') return;
         state.serverProgress = data;
@@ -205,7 +208,37 @@
     });
   }
 
-  function renderOfflineGuide(lab, isDemo) {
+  function renderOfflineGuide(lab, isDemo, srv) {
+    srv = srv || getServerStatus();
+    if (srv.mode === 'tauri' && !srv.gpp) {
+      return (
+        '<div class="offline-banner">' +
+          '<h4>🖥️ 桌面版未检测到本机 g++ 编译器</h4>' +
+          '<p style="margin:0 0 8px;">当前为 <strong>Tauri 2 原生桌面端</strong>，Rust 后端直接调用本机 <code>g++</code> 编译评测，无需 Python。检测到您的电脑尚未安装 <code>g++</code>（或未加入 <code>PATH</code>）：</p>' +
+          '<ol style="margin:0 0 10px;padding-left:18px;font-size:12.5px;color:var(--text-sub);">' +
+            '<li>推荐安装 <strong>MSYS2 (UCRT64)</strong>：在终端运行 <code>winget install MSYS2.MSYS2</code>，再打开 MSYS2 执行 <code>pacman -S mingw-w64-ucrt-x86_64-gcc</code>；</li>' +
+            '<li>或安装 <strong>MinGW-w64 / Dev-C++</strong> 并确保 <code>g++.exe</code> 所在 <code>bin</code> 目录位于默认路径或系统 <code>PATH</code>；</li>' +
+            '<li>安装完成后点击下方按钮即可立即启用 15 关真编译评测与 30 示例运行！</li>' +
+          '</ol>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<button type="button" class="btn btn-sm btn-primary" id="btn-recheck-srv">🔄 重新检测本机 g++</button>' +
+            '<button type="button" class="btn btn-sm" id="btn-offline-download">⬇ 下载当前代码 (.cpp)</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+    if (srv.online && !srv.gpp) {
+      return (
+        '<div class="offline-banner">' +
+          '<h4>⚠️ 本地评测服务已在线，但未检测到 g++ 编译器</h4>' +
+          '<p style="margin:0 0 10px;">请先安装 <strong>MSYS2 / MinGW-w64</strong> 并将 <code>g++</code> 加入系统 <code>PATH</code>，随后点击下方按钮重新检测。</p>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<button type="button" class="btn btn-sm btn-primary" id="btn-recheck-srv">🔄 重新检测 g++</button>' +
+            '<button type="button" class="btn btn-sm" id="btn-offline-download">⬇ 下载当前代码 (.cpp)</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
     var cmd = isDemo
       ? ('g++ -std=c++11 -O2 "code/' + (lab ? lab.filename : 'demo.cpp') + '" -o demo && ./demo')
       : ('python judge.py ' + (lab ? lab.id : '00'));
@@ -386,6 +419,19 @@
 
     var passedCount = labs.filter(function (l) { return isLabPassed(l.id); }).length;
 
+    var statusBadgeHtml = '';
+    if (srv.mode === 'tauri' && srv.gpp) {
+      statusBadgeHtml = '<span class="badge badge-green">🖥️ 桌面版 · g++ 直连就绪 · ' + escapeHtml(srv.gppVersion || 'g++') + '</span>';
+    } else if (srv.mode === 'tauri' && !srv.gpp) {
+      statusBadgeHtml = '<span class="badge badge-amber">🖥️ 桌面版 · 需安装 MinGW/MSYS2 g++</span>';
+    } else if (srv.online && srv.gpp) {
+      statusBadgeHtml = '<span class="badge badge-green">🟢 g++ 在线评测就绪 · ' + escapeHtml(srv.gppVersion || 'g++') + '</span>';
+    } else if (srv.online && !srv.gpp) {
+      statusBadgeHtml = '<span class="badge badge-amber">⚠️ 本地服务在线但未检出 g++</span>';
+    } else {
+      statusBadgeHtml = '<span class="badge badge-amber">📦 纯离线预览模式（双击 启动学习网站.vbs（无黑框）或 启动学习网站.bat 开启真编译）</span>';
+    }
+
     // 顶部模式切换栏
     var topBarHtml =
       '<div class="lab-top-bar">' +
@@ -394,9 +440,7 @@
           '<button type="button" class="mode-tab' + (state.mode === 'demos' ? ' active' : '') + '" data-lab-mode="demos">📦 30 个完整示例运行库 (' + demos.length + ')</button>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-          (srv.online && srv.gpp
-            ? '<span class="badge badge-green">🟢 g++ 在线评测就绪 · ' + escapeHtml(srv.gppVersion || 'g++') + '</span>'
-            : '<span class="badge badge-amber">📦 纯离线预览模式（双击 启动学习网站.vbs（无黑框）或 启动学习网站.bat 开启真编译）</span>') +
+          statusBadgeHtml +
         '</div>' +
       '</div>';
 
@@ -540,7 +584,7 @@
               '</div>' +
             '</div>' +
             '<div class="card output-card" id="lab-output-panel">' +
-              (!srv.online ? renderOfflineGuide(curLab, false) : '') +
+              ((!srv.online || !srv.gpp) ? renderOfflineGuide(curLab, false, srv) : '') +
               renderJudgeResult(state.lastJudgeResult, curLab) +
             '</div>' +
           '</div>' +
@@ -557,7 +601,11 @@
       var code = editorEl.value;
       localStorage.setItem(DRAFT_PREFIX + curLab.id, code);
       if (!curSrv.online || !curSrv.gpp) {
-        notify('当前为离线模式，请双击「启动学习网站.vbs（无黑框）」或「启动学习网站.bat」开启本地 g++ 评测，或点击右侧下载代码！', 'warn');
+        if (curSrv.mode === 'tauri' || curSrv.online) {
+          notify('未检测到本机 g++，请先安装 MSYS2 / MinGW-w64 后点击「重新检测本机 g++」！', 'warn');
+        } else {
+          notify('当前为离线模式，请双击「启动学习网站.vbs（无黑框）」或「启动学习网站.bat」开启本地 g++ 评测，或点击右侧下载代码！', 'warn');
+        }
         return;
       }
       if (state.running) return;
@@ -565,16 +613,11 @@
       state.lastJudgeResult = { loading: true };
       render(containerEl, token);
 
-      fetch('/api/judge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          labId: curLab.id,
-          code: code,
-          saveToDisk: !!state.saveToDisk
-        })
-      })
-        .then(function (r) { return r.json(); })
+      var judgePromise = (global.DSBackend && typeof global.DSBackend.judgeLab === 'function')
+        ? global.DSBackend.judgeLab({ labId: curLab.id, code: code, saveToDisk: !!state.saveToDisk })
+        : Promise.reject(new Error('后端桥接未就绪'));
+
+      judgePromise
         .then(function (data) {
           state.running = false;
           state.lastJudgeResult = data;
@@ -752,7 +795,7 @@
               '</div>' +
             '</div>' +
             '<div class="card output-card">' +
-              (!srv.online ? renderOfflineGuide(curDemo, true) : '') +
+              ((!srv.online || !srv.gpp) ? renderOfflineGuide(curDemo, true, srv) : '') +
               renderDemoResult(state.lastDemoResult, curDemo) +
             '</div>' +
           '</div>' +
@@ -769,7 +812,11 @@
       var code = editorEl.value;
       localStorage.setItem(DEMO_DRAFT_PREFIX + curDemo.filename, code);
       if (!curSrv.online || !curSrv.gpp) {
-        notify('当前为离线模式，请双击「启动学习网站.vbs（无黑框）」或「启动学习网站.bat」后即可一键运行 C++ 演示代码！', 'warn');
+        if (curSrv.mode === 'tauri' || curSrv.online) {
+          notify('未检测到本机 g++，请先安装 MSYS2 / MinGW-w64 后点击「重新检测本机 g++」！', 'warn');
+        } else {
+          notify('当前为离线模式，请双击「启动学习网站.vbs（无黑框）」或「启动学习网站.bat」后即可一键运行 C++ 演示代码！', 'warn');
+        }
         return;
       }
       if (state.running) return;
@@ -777,12 +824,11 @@
       state.lastDemoResult = { loading: true };
       render(containerEl, token);
 
-      fetch('/api/run-demo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: code })
-      })
-        .then(function (r) { return r.json(); })
+      var demoPromise = (global.DSBackend && typeof global.DSBackend.runDemo === 'function')
+        ? global.DSBackend.runDemo(code)
+        : Promise.reject(new Error('后端桥接未就绪'));
+
+      demoPromise
         .then(function (data) {
           state.running = false;
           state.lastDemoResult = data;

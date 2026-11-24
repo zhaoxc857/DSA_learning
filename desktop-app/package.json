@@ -1,0 +1,15 @@
+{
+  "name": "dsa-learning-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "《数据结构与算法 · 互动自学学院》Tauri 2 原生桌面应用",
+  "scripts": {
+    "sync": "python sync_web.py",
+    "icons": "python generate_icons.py",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

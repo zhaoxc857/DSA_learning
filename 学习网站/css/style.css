@@ -2104,7 +2104,7 @@ button {
   }
 }
 
-@media (max-width: 1320px) {
+@media (max-width: 1380px) {
   .xp-bar-mini,
   .brand-sub {
     display: none;

@@ -10,6 +10,7 @@
   var activeVizController = null;
   var serverStatus = {
     online: false,
+    mode: 'offline',
     gpp: false,
     gppVersion: '',
     pythonVersion: '',
@@ -129,7 +130,7 @@
   }
 
   /* ------------------------------------------------------------------------
-     本地 server.py & g++ 状态检测
+     本地后端（Tauri 2 桌面端 / server.py / 纯离线）状态检测
      ------------------------------------------------------------------------ */
   function updateServerPill() {
     var pill = document.getElementById('server-pill');
@@ -137,7 +138,17 @@
     var btnShutdown = document.getElementById('btn-shutdown-server');
     if (!pill || !label) return;
     pill.classList.remove('online', 'warn', 'offline');
-    if (serverStatus.online && serverStatus.gpp) {
+
+    var isDesktop = serverStatus.mode === 'tauri';
+    if (isDesktop && serverStatus.gpp) {
+      pill.classList.add('online');
+      label.textContent = '🖥️ 桌面版 · g++ 就绪';
+      pill.title = 'Tauri 2 原生桌面端 · Rust 直连本机 g++ (' + (serverStatus.gppVersion || 'g++') + ')';
+    } else if (isDesktop && !serverStatus.gpp) {
+      pill.classList.add('warn');
+      label.textContent = '🖥️ 桌面版 · 需安装 g++';
+      pill.title = '当前为 Tauri 2 原生桌面端，未检测到本机 g++，点击查看安装引导';
+    } else if (serverStatus.online && serverStatus.gpp) {
       pill.classList.add('online');
       label.textContent = 'g++ 在线';
       pill.title = '本地评测服务在线 (' + (serverStatus.gppVersion || 'g++') + ')';
@@ -150,31 +161,34 @@
       label.textContent = '离线模式';
       pill.title = '当前为纯离线模式，双击 启动学习网站.vbs（无黑框）或 启动学习网站.bat 开启网页内真 g++ 评测';
     }
+
     if (btnShutdown) {
-      btnShutdown.classList.toggle('hidden', !(serverStatus.online && serverStatus.canShutdown !== false));
+      var showShut = !isDesktop && serverStatus.online && serverStatus.canShutdown !== false;
+      btnShutdown.classList.toggle('hidden', !showShut);
     }
   }
 
   function shutdownServer() {
-    if (!serverStatus.online) return Promise.resolve(false);
+    if (!serverStatus.online || serverStatus.mode === 'tauri') return Promise.resolve(false);
     var ok = confirm('确定关闭后台本地 g++ 评测服务吗？\n关闭后仍可离线阅读与看动画，随时双击「启动学习网站.vbs」即可重新开启。');
     if (!ok) return Promise.resolve(false);
 
     var btnShutdown = document.getElementById('btn-shutdown-server');
     if (btnShutdown) btnShutdown.disabled = true;
 
-    return fetch('/api/shutdown', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}'
-    })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json().catch(function () { return { ok: true }; });
-      })
-      .then(function () {
+    var req = (global.DSBackend && typeof global.DSBackend.shutdown === 'function')
+      ? global.DSBackend.shutdown()
+      : Promise.reject(new Error('后端桥接未就绪'));
+
+    return req
+      .then(function (res) {
+        if (res && res.ok === false && res.reason === 'desktop') {
+          if (btnShutdown) btnShutdown.disabled = false;
+          return false;
+        }
         serverStatus = {
           online: false,
+          mode: 'offline',
           gpp: false,
           gppVersion: '',
           pythonVersion: '',
@@ -201,53 +215,77 @@
   }
 
   function checkServer(showToast) {
-    if (location.protocol === 'file:') {
-      serverStatus = { online: false, gpp: false, gppVersion: '', pythonVersion: '', labsCount: 15, canShutdown: false, pid: null, isFileProtocol: true };
+    var checkPromise = (global.DSBackend && typeof global.DSBackend.checkHealth === 'function')
+      ? global.DSBackend.checkHealth()
+      : Promise.resolve({ ok: false, offline: true, mode: 'offline', gpp: false, canShutdown: false });
+
+    return checkPromise.then(function (data) {
+      data = data || {};
+      var mode = data.mode || (global.DSBackend && global.DSBackend.isTauri() ? 'tauri' : (data.ok ? 'http' : 'offline'));
+      serverStatus = {
+        online: Boolean(data.ok),
+        mode: mode,
+        gpp: Boolean(data.gpp),
+        gppVersion: data.gppVersion || '',
+        pythonVersion: data.pythonVersion || '',
+        labsCount: data.labsCount || 15,
+        canShutdown: mode === 'tauri' ? false : (data.canShutdown !== undefined ? Boolean(data.canShutdown) : Boolean(data.ok)),
+        pid: data.pid || null,
+        isFileProtocol: location.protocol === 'file:' && mode !== 'tauri'
+      };
       updateServerPill();
-      if (showToast) toast('当前通过 file:// 离线打开，双击 启动学习网站.vbs（无黑框）或 启动学习网站.bat 即可开启在线评测', 'info');
-      return Promise.resolve(serverStatus);
-    }
-
-    var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var timer = controller ? setTimeout(function () { controller.abort(); }, 2200) : null;
-
-    return fetch('/api/health', controller ? { signal: controller.signal } : {})
-      .then(function (r) {
-        if (timer) clearTimeout(timer);
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function (data) {
-        serverStatus = {
-          online: !!(data && data.ok),
-          gpp: !!(data && data.gpp),
-          gppVersion: (data && data.gppVersion) || '',
-          pythonVersion: (data && data.pythonVersion) || '',
-          labsCount: (data && data.labsCount) || 15,
-          canShutdown: data && data.canShutdown !== undefined ? !!data.canShutdown : !!(data && data.ok),
-          pid: (data && data.pid) || null,
-          isFileProtocol: false
-        };
-        updateServerPill();
-        if (showToast) {
+      if (showToast) {
+        if (mode === 'tauri') {
+          toast(
+            serverStatus.gpp ? '🖥️ 桌面版已直连本机 g++，编译评测就绪！' : '⚠️ 桌面版未检测到本机 g++，请先安装 MinGW/MSYS2',
+            serverStatus.gpp ? 'success' : 'warn'
+          );
+        } else if (serverStatus.online) {
           toast(serverStatus.gpp ? '🟢 本地 g++ 评测服务连接正常！' : '⚠️ 服务在线但未检测到 g++', serverStatus.gpp ? 'success' : 'warn');
+        } else if (serverStatus.isFileProtocol) {
+          toast('当前通过 file:// 离线打开，双击 启动学习网站.vbs（无黑框）或 启动学习网站.bat 即可开启在线评测', 'info');
+        } else {
+          toast('未检测到本地 server.py，当前处于离线模式', 'warn');
         }
-        return serverStatus;
-      })
-      .catch(function () {
-        if (timer) clearTimeout(timer);
-        serverStatus = { online: false, gpp: false, gppVersion: '', pythonVersion: '', labsCount: 15, canShutdown: false, pid: null, isFileProtocol: false };
-        updateServerPill();
-        if (showToast) toast('未检测到本地 server.py，当前处于离线模式', 'warn');
-        return serverStatus;
-      });
+      }
+      return serverStatus;
+    });
   }
 
   function openServerModal() {
     var modal = document.getElementById('server-modal');
     var body = document.getElementById('server-modal-body');
     if (!modal || !body) return;
-    if (serverStatus.online && serverStatus.gpp) {
+
+    if (serverStatus.mode === 'tauri') {
+      if (serverStatus.gpp) {
+        body.innerHTML =
+          '<div class="judge-summary pass" style="margin-bottom:14px;">' +
+            '<strong>🖥️ 当前为 Tauri 2 原生桌面端 · g++ 就绪</strong><span class="badge badge-green">DESKTOP</span>' +
+          '</div>' +
+          '<p>当前为 <strong>Tauri 2 原生桌面端</strong>，Rust 后端直连本机 <code>g++</code>，<strong>无需 Python 与本地端口</strong>，关闭窗口即自动退出应用！</p>' +
+          '<p><strong>本机编译器：</strong><code>' + escapeHtml(serverStatus.gppVersion || 'g++') + '</code></p>' +
+          '<p><strong>可用实验关卡：</strong>' + serverStatus.labsCount + ' 关（支持内嵌 <code>test_kit.h</code> 真编译评测与 30 个示例一键运行）</p>' +
+          '<div style="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:16px;">' +
+            '<button type="button" class="btn btn-sm" id="btn-modal-recheck">🔄 重新检测 g++</button>' +
+            '<button type="button" class="btn btn-sm btn-primary" id="btn-modal-go-lab">💻 去写代码闯关</button>' +
+          '</div>';
+      } else {
+        body.innerHTML =
+          '<div class="offline-banner" style="margin-bottom:12px;">' +
+            '<h4>🖥️ 当前为 Tauri 2 原生桌面端（未检测到本机 g++）</h4>' +
+            '<p style="margin:0;">当前为 <strong>Tauri 2 原生桌面端</strong>，Rust 直连本机 <code>g++</code>，无需 Python 与本地端口。阅读、8 大动画、刷题与闪卡均可离线畅学；如需运行 15 关真编译评测，请先安装 C++ 编译器：</p>' +
+          '</div>' +
+          '<ol style="padding-left:20px;margin:6px 0 14px;">' +
+            '<li>推荐安装 <strong>MSYS2 (UCRT64)</strong> 或 <strong>MinGW-w64</strong>（如 <code>winget install MSYS2.MSYS2</code> 后执行 <code>pacman -S mingw-w64-ucrt-x86_64-gcc</code>）；</li>' +
+            '<li>或安装 <strong>Dev-C++ / WinLibs MinGW64</strong> 并将 <code>bin</code> 目录加入系统 <code>PATH</code>；</li>' +
+            '<li>安装完成后点击下方「重新检测 g++」即可立即启用编译评测！</li>' +
+          '</ol>' +
+          '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
+            '<button type="button" class="btn btn-sm btn-primary" id="btn-modal-recheck">🔄 重新检测 g++</button>' +
+          '</div>';
+      }
+    } else if (serverStatus.online && serverStatus.gpp) {
       body.innerHTML =
         '<div class="judge-summary pass" style="margin-bottom:14px;">' +
           '<strong>🟢 本地真编译评测服务运行中</strong><span class="badge badge-green">ONLINE</span>' +
