@@ -12,7 +12,8 @@
       GET  /api/health    环境与 g++ 健康检查（含 canShutdown、pid）
       GET  /api/progress  读取 ../labs/.progress.json 进度
       POST /api/judge     真 g++ 编译运行 15 关评测 + 更新进度 + 可选安全写回 todo.cpp
-      POST /api/run-demo  真 g++ 编译运行任意 C++11 演示代码（超时 8 秒）
+      POST /api/judge-oj  真 g++ 编译运行全手搓 OJ 多组标准输入输出评测（AC/WA/TLE/RE/CE）
+      POST /api/run-demo  真 g++ 编译运行任意 C++11 演示代码（支持自定义 stdin，超时 8 秒）
       POST /api/shutdown  仅限本机安全关闭后台评测服务
 """
 
@@ -27,6 +28,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import urllib.request
 import webbrowser
 from datetime import datetime
@@ -44,6 +46,7 @@ PID_FILE = os.path.join(SITE_DIR, ".server.pid")
 LOG_FILE = os.path.join(SITE_DIR, ".server.log")
 
 RUN_TIMEOUT_SEC = 8
+OJ_TIMEOUT_SEC = 3.0
 COMPILE_TIMEOUT_SEC = 25
 MAX_REQUEST_BYTES = 2 * 1024 * 1024  # 2 MB
 SUBPROCESS_FLAGS = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
@@ -163,6 +166,41 @@ def update_progress(lab_id: str, status: str, passed: int, total: int) -> None:
             "total": total,
             "updated": datetime.now().isoformat(timespec="seconds"),
         }
+        os.makedirs(os.path.dirname(PROGRESS_FILE), exist_ok=True)
+        tmp_path = PROGRESS_FILE + ".tmp"
+        try:
+            with open(tmp_path, "w", encoding="utf-8", newline="\n") as f:
+                json.dump(prog, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, PROGRESS_FILE)
+        except Exception:
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                pass
+
+
+def record_oj_passed(problem_id: str) -> None:
+    """将通关的全手搓 OJ 题号持久化到 ../labs/.progress.json 的 _ojPassed 数组（不干扰 judge.py 关卡键）。"""
+    pid = (problem_id or "").strip()
+    if not pid:
+        return
+    with _PROGRESS_LOCK:
+        prog: Dict[str, Any] = {}
+        if os.path.exists(PROGRESS_FILE):
+            try:
+                with open(PROGRESS_FILE, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                    if isinstance(loaded, dict):
+                        prog = loaded
+            except Exception:
+                prog = {}
+        oj_list = prog.get("_ojPassed")
+        if not isinstance(oj_list, list):
+            oj_list = []
+        if pid not in oj_list:
+            oj_list.append(pid)
+        prog["_ojPassed"] = oj_list
         os.makedirs(os.path.dirname(PROGRESS_FILE), exist_ok=True)
         tmp_path = PROGRESS_FILE + ".tmp"
         try:
@@ -432,7 +470,147 @@ def judge_lab(lab_id: str, code: str, save_to_disk: bool = False) -> Dict[str, A
         }
 
 
-def run_demo_code(code: str) -> Dict[str, Any]:
+def normalize_oj_output(text: str) -> str:
+    """将标准输出统一换行、逐行去除行尾空白并去除首尾空行，符合标准 OJ 比对规则。"""
+    if not text:
+        return ""
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    return "\n".join(line.rstrip() for line in lines).strip()
+
+
+def judge_oj(problem_id: str, code: str, test_cases: List[Dict[str, Any]]) -> Dict[str, Any]:
+    total = len(test_cases)
+    with tempfile.TemporaryDirectory(prefix="ds_oj_") as tmpdir:
+        src_path = os.path.join(tmpdir, "main.cpp")
+        exe_name = "main.exe" if os.name == "nt" else "main"
+        exe_path = os.path.join(tmpdir, exe_name)
+
+        with open(src_path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(code)
+
+        cmd = ["g++", "-std=c++11", "-O2", "-Wall", "-Wextra", src_path, "-o", exe_path]
+        try:
+            comp = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=COMPILE_TIMEOUT_SEC,
+                creationflags=SUBPROCESS_FLAGS,
+            )
+        except FileNotFoundError:
+            return {
+                "ok": False,
+                "compileOk": False,
+                "verdict": "CE",
+                "compileError": "未找到 g++ 编译器！请先安装 Dev-C++ 或 MSYS2/MinGW 并将 g++ 加入系统 PATH。",
+                "warnings": "",
+                "passed": 0,
+                "total": total,
+                "cases": [],
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                "ok": False,
+                "compileOk": False,
+                "verdict": "CE",
+                "compileError": f"编译超时（>{COMPILE_TIMEOUT_SEC}s）。",
+                "warnings": "",
+                "passed": 0,
+                "total": total,
+                "cases": [],
+            }
+
+        comp_err_clean = clean_compiler_paths(comp.stderr or "", src_path, "main.cpp")
+        if comp.returncode != 0:
+            return {
+                "ok": False,
+                "compileOk": False,
+                "verdict": "CE",
+                "compileError": comp_err_clean or "编译失败（未知错误）",
+                "warnings": "",
+                "passed": 0,
+                "total": total,
+                "cases": [],
+            }
+
+        warnings = comp_err_clean
+        cases: List[Dict[str, Any]] = []
+        passed = 0
+
+        for i, tc in enumerate(test_cases):
+            tc_dict = tc if isinstance(tc, dict) else {}
+            label = str(tc_dict.get("label") or f"测试点 #{i + 1}")
+            inp = "" if tc_dict.get("input") is None else str(tc_dict.get("input"))
+            exp = "" if tc_dict.get("expected") is None else str(tc_dict.get("expected"))
+
+            t0 = time.perf_counter()
+            try:
+                proc = subprocess.run(
+                    [exe_path],
+                    input=inp,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=OJ_TIMEOUT_SEC,
+                    creationflags=SUBPROCESS_FLAGS,
+                )
+                time_ms = int(round((time.perf_counter() - t0) * 1000))
+                actual = proc.stdout or ""
+                stderr_text = (proc.stderr or "").strip()
+
+                if proc.returncode != 0:
+                    status = "RE"
+                    err_msg = stderr_text or f"程序异常退出（返回码 {proc.returncode}），请检查数组越界、空指针或除以零"
+                elif normalize_oj_output(actual) == normalize_oj_output(exp):
+                    status = "AC"
+                    passed += 1
+                    err_msg = ""
+                else:
+                    status = "WA"
+                    err_msg = ""
+            except subprocess.TimeoutExpired as te:
+                time_ms = int(round((time.perf_counter() - t0) * 1000))
+                actual = ""
+                if te.stdout:
+                    actual = te.stdout.decode("utf-8", errors="replace") if isinstance(te.stdout, bytes) else str(te.stdout)
+                status = "TLE"
+                err_msg = f"运行超时（>{OJ_TIMEOUT_SEC:g}s），请检查是否存在死循环或算法复杂度过高"
+
+            cases.append({
+                "index": i + 1,
+                "label": label,
+                "status": status,
+                "input": inp,
+                "expected": exp,
+                "actual": actual,
+                "timeMs": time_ms,
+                "error": err_msg,
+            })
+
+        all_ac = (total > 0) and (passed == total)
+        if all_ac:
+            verdict = "AC"
+            if problem_id:
+                record_oj_passed(problem_id)
+        else:
+            verdict = next((c["status"] for c in cases if c["status"] != "AC"), "WA")
+
+        return {
+            "ok": all_ac,
+            "compileOk": True,
+            "verdict": verdict,
+            "compileError": "",
+            "warnings": warnings,
+            "passed": passed,
+            "total": total,
+            "cases": cases,
+        }
+
+
+def run_demo_code(code: str, stdin_text: str = "") -> Dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="ds_demo_") as tmpdir:
         src_path = os.path.join(tmpdir, "demo.cpp")
         exe_name = "demo.exe" if os.name == "nt" else "demo"
@@ -485,7 +663,7 @@ def run_demo_code(code: str) -> Dict[str, Any]:
         try:
             proc = subprocess.run(
                 [exe_path],
-                stdin=subprocess.DEVNULL,
+                input=stdin_text if stdin_text is not None else "",
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -606,6 +784,27 @@ class StudySiteHandler(BaseHTTPRequestHandler):
             self._send_json(HTTPStatus.OK, result)
             return
 
+        if req_path == "/api/judge-oj":
+            data, err = self._read_json_body()
+            if err or data is None:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "compileOk": False, "verdict": "CE", "compileError": err or "请求无效", "warnings": "", "passed": 0, "total": 0, "cases": []})
+                return
+            code = data.get("code")
+            if not isinstance(code, str):
+                self._send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "compileOk": False, "verdict": "CE", "compileError": "缺少字符串字段 code", "warnings": "", "passed": 0, "total": 0, "cases": []})
+                return
+            test_cases = data.get("testCases")
+            if not isinstance(test_cases, list) or len(test_cases) == 0:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "compileOk": False, "verdict": "CE", "compileError": "缺少非空数组字段 testCases", "warnings": "", "passed": 0, "total": 0, "cases": []})
+                return
+            if len(test_cases) > 100:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "compileOk": False, "verdict": "CE", "compileError": "单次评测测试用例数量超过上限（100）", "warnings": "", "passed": 0, "total": len(test_cases), "cases": []})
+                return
+            problem_id = str(data.get("problemId") or "").strip()
+            result = judge_oj(problem_id, code, test_cases)
+            self._send_json(HTTPStatus.OK, result)
+            return
+
         if req_path == "/api/run-demo":
             data, err = self._read_json_body()
             if err or data is None:
@@ -615,7 +814,12 @@ class StudySiteHandler(BaseHTTPRequestHandler):
             if not isinstance(code, str):
                 self._send_json(HTTPStatus.BAD_REQUEST, {"compileOk": False, "compileError": "缺少字符串字段 code"})
                 return
-            result = run_demo_code(code)
+            stdin_val = data.get("stdin", "")
+            if stdin_val is None:
+                stdin_val = ""
+            elif not isinstance(stdin_val, str):
+                stdin_val = str(stdin_val)
+            result = run_demo_code(code, stdin_val)
             self._send_json(HTTPStatus.OK, result)
             return
 

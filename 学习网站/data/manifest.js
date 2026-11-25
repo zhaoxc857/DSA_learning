@@ -249,7 +249,7 @@ window.DS_MANIFEST = {
       "title": "《数据结构与算法》小白自学笔记",
       "shortTitle": "全书导读",
       "bundle": "extras",
-      "lineCount": 257
+      "lineCount": 260
     },
     {
       "id": "labsReadme",
@@ -269,11 +269,12 @@ window.DS_MANIFEST = {
     }
   ],
   "stats": {
-    "totalLines": 27242,
+    "totalLines": 27245,
     "totalChapters": 14,
     "totalDocs": 17,
     "totalLabs": 15,
     "totalDemos": 30,
+    "totalOJ": 16,
     "totalTestCases": 477
   }
 };

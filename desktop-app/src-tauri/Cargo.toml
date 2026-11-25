@@ -1,6 +1,6 @@
 [package]
 name = "dsa-learning"
-version = "1.0.0"
+version = "1.1.0"
 description = "数据结构与算法 · 互动自学学院原生桌面端"
 authors = ["DSA Learning"]
 edition = "2021"

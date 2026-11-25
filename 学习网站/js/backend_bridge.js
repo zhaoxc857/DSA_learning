@@ -139,8 +139,31 @@
     });
   }
 
-  function runDemo(code) {
-    var payload = { code: String(code || '') };
+  function judgeOJ(opts) {
+    opts = opts || {};
+    var payload = {
+      problemId: String(opts.problemId || ''),
+      code: String(opts.code || ''),
+      testCases: Array.isArray(opts.testCases) ? opts.testCases : []
+    };
+    if (isTauri()) {
+      return invokeTauri('judge_oj', payload);
+    }
+    return fetch('/api/judge-oj', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+
+  function runDemo(code, stdin) {
+    var payload = {
+      code: String(code || ''),
+      stdin: stdin !== undefined && stdin !== null ? String(stdin) : ''
+    };
     if (isTauri()) {
       return invokeTauri('run_demo', payload);
     }
@@ -176,6 +199,7 @@
     checkHealth: checkHealth,
     getProgress: getProgress,
     judgeLab: judgeLab,
+    judgeOJ: judgeOJ,
     runDemo: runDemo,
     shutdown: shutdown
   };

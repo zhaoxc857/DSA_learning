@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -19,6 +19,7 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 const COMPILE_TIMEOUT_SECS: u64 = 25;
 const RUN_TIMEOUT_SECS: u64 = 8;
+const OJ_CASE_TIMEOUT_SECS: u64 = 3;
 const TEST_KIT_HEADER: &str = include_str!("../resources/test_kit.h");
 
 const LAB_FOLDERS: &[(&str, &str)] = &[
@@ -104,6 +105,43 @@ pub struct DemoResult {
     pub stderr: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OjTestCase {
+    #[serde(default)]
+    pub label: String,
+    #[serde(default)]
+    pub input: String,
+    #[serde(default)]
+    pub expected: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OjCaseResult {
+    pub index: usize,
+    pub label: String,
+    pub status: String,
+    pub input: String,
+    pub expected: String,
+    pub actual: String,
+    pub time_ms: u64,
+    pub error: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OjJudgeResult {
+    pub ok: bool,
+    pub compile_ok: bool,
+    pub verdict: String,
+    pub compile_error: String,
+    pub warnings: String,
+    pub passed: usize,
+    pub total: usize,
+    pub cases: Vec<OjCaseResult>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ProgressEntry {
     status: String,
@@ -146,6 +184,7 @@ struct ExecOutput {
     exit_code: i32,
     stdout: String,
     stderr: String,
+    elapsed_ms: u64,
 }
 
 fn configure_no_window(cmd: &mut Command) {
@@ -171,13 +210,33 @@ fn prepend_bin_dir_to_path(cmd: &mut Command, bin_dir: Option<&Path>) {
 fn run_command_with_timeout(
     cmd: &mut Command,
     timeout: Duration,
+    stdin_data: Option<&str>,
 ) -> Result<ExecOutput, std::io::Error> {
     configure_no_window(cmd);
-    cmd.stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+    if stdin_data.is_some() {
+        cmd.stdin(Stdio::piped());
+    } else {
+        cmd.stdin(Stdio::null());
+    }
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
+    let start = Instant::now();
     let mut child = cmd.spawn()?;
+
+    let in_handle = if let Some(input_str) = stdin_data {
+        let input_bytes = input_str.as_bytes().to_vec();
+        let stdin_pipe = child.stdin.take();
+        Some(thread::spawn(move || {
+            if let Some(mut pipe) = stdin_pipe {
+                let _ = pipe.write_all(&input_bytes);
+                let _ = pipe.flush();
+                // pipe 在此作用域结束时自动关闭，向子进程发送 EOF
+            }
+        }))
+    } else {
+        None
+    };
+
     let mut stdout_pipe = child.stdout.take();
     let mut stderr_pipe = child.stderr.take();
 
@@ -197,7 +256,7 @@ fn run_command_with_timeout(
         buf
     });
 
-    let deadline = Instant::now() + timeout;
+    let deadline = start + timeout;
     let mut timed_out = false;
     let exit_code;
 
@@ -215,11 +274,15 @@ fn run_command_with_timeout(
                     exit_code = -1;
                     break;
                 }
-                thread::sleep(Duration::from_millis(15));
+                thread::sleep(Duration::from_millis(12));
             }
         }
     }
 
+    let elapsed_ms = start.elapsed().as_millis() as u64;
+    if let Some(h) = in_handle {
+        let _ = h.join();
+    }
     let stdout_bytes = out_handle.join().unwrap_or_default();
     let stderr_bytes = err_handle.join().unwrap_or_default();
 
@@ -228,6 +291,7 @@ fn run_command_with_timeout(
         exit_code,
         stdout: String::from_utf8_lossy(&stdout_bytes).into_owned(),
         stderr: String::from_utf8_lossy(&stderr_bytes).into_owned(),
+        elapsed_ms,
     })
 }
 
@@ -236,7 +300,7 @@ fn probe_gpp_binary(program: &str, bin_dir: Option<PathBuf>) -> Option<GppInfo> 
     cmd.arg("--version");
     prepend_bin_dir_to_path(&mut cmd, bin_dir.as_deref());
 
-    let out = run_command_with_timeout(&mut cmd, Duration::from_secs(5)).ok()?;
+    let out = run_command_with_timeout(&mut cmd, Duration::from_secs(5), None).ok()?;
     if out.timed_out || out.exit_code != 0 {
         return None;
     }
@@ -345,12 +409,10 @@ fn resolve_progress_path(app: Option<&tauri::AppHandle>) -> Option<PathBuf> {
 }
 
 fn now_iso_timestamp() -> String {
-    // 转换为 YYYY-MM-DDTHH:MM:SS（使用本地时区偏移近似或 UTC+8 回退，不引入额外 chrono 依赖）
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
-    // Howard Hinnant civil-from-days algorithm (UTC)
     let days = secs.div_euclid(86_400);
     let rem = secs.rem_euclid(86_400);
     let hour = rem / 3600;
@@ -369,6 +431,22 @@ fn now_iso_timestamp() -> String {
     let year = if m <= 2 { y + 1 } else { y };
 
     format!("{year:04}-{m:02}-{d:02}T{hour:02}:{minute:02}:{second:02}Z")
+}
+
+fn write_progress_map_atomic(file_path: &Path, prog: &BTreeMap<String, Value>) {
+    if let Some(parent) = file_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+
+    let tmp_path = file_path.with_extension("json.tmp");
+    if let Ok(serialized) = serde_json::to_string_pretty(prog) {
+        if fs::write(&tmp_path, serialized).is_ok() {
+            if fs::rename(&tmp_path, file_path).is_err() {
+                let _ = fs::copy(&tmp_path, file_path);
+                let _ = fs::remove_file(&tmp_path);
+            }
+        }
+    }
 }
 
 fn load_progress_from_path(path: Option<&Path>) -> Value {
@@ -419,20 +497,46 @@ fn update_progress_at_path(
         prog.insert(lab_id.to_string(), val);
     }
 
-    if let Some(parent) = file_path.parent() {
-        let _ = fs::create_dir_all(parent);
+    write_progress_map_atomic(file_path, &prog);
+}
+
+fn record_oj_passed_at_path(path: Option<&Path>, problem_id: &str) {
+    let pid = problem_id.trim();
+    if pid.is_empty() {
+        return;
+    }
+    let _guard = progress_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let Some(file_path) = path else {
+        return;
+    };
+
+    let mut prog: BTreeMap<String, Value> = if file_path.is_file() {
+        fs::read_to_string(file_path)
+            .ok()
+            .and_then(|s| serde_json::from_str::<BTreeMap<String, Value>>(&s).ok())
+            .unwrap_or_default()
+    } else {
+        BTreeMap::new()
+    };
+
+    let mut passed_list: Vec<String> = match prog.get("_ojPassed") {
+        Some(Value::Array(arr)) => arr
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect(),
+        _ => Vec::new(),
+    };
+
+    if !passed_list.iter().any(|x| x == pid) {
+        passed_list.push(pid.to_string());
     }
 
-    let tmp_path = file_path.with_extension("json.tmp");
-    if let Ok(serialized) = serde_json::to_string_pretty(&prog) {
-        if fs::write(&tmp_path, serialized).is_ok() {
-            if fs::rename(&tmp_path, file_path).is_err() {
-                // Windows 上若目标文件已存在，先复制覆盖再清理临时文件
-                let _ = fs::copy(&tmp_path, file_path);
-                let _ = fs::remove_file(&tmp_path);
-            }
-        }
-    }
+    prog.insert(
+        "_ojPassed".to_string(),
+        Value::Array(passed_list.into_iter().map(Value::String).collect()),
+    );
+
+    write_progress_map_atomic(file_path, &prog);
 }
 
 fn normalize_lab_id(raw: &Value) -> Option<String> {
@@ -522,6 +626,15 @@ fn clean_compiler_paths(text: &str, temp_src: &Path, display_name: &str) -> Stri
         .replace(&src_slash, display_name)
         .trim()
         .to_string()
+}
+
+pub fn normalize_oj_output(text: &str) -> String {
+    let normalized_nl = text.replace("\r\n", "\n").replace('\r', "\n");
+    let lines: Vec<&str> = normalized_nl
+        .split('\n')
+        .map(|ln| ln.trim_end())
+        .collect();
+    lines.join("\n").trim().to_string()
 }
 
 fn parse_summary_counts(stdout_text: &str) -> Option<(usize, usize)> {
@@ -707,7 +820,11 @@ fn judge_lab_internal(
         .arg(&exe_path);
     prepend_bin_dir_to_path(&mut comp_cmd, gpp.bin_dir.as_deref());
 
-    let comp_out = match run_command_with_timeout(&mut comp_cmd, Duration::from_secs(COMPILE_TIMEOUT_SECS)) {
+    let comp_out = match run_command_with_timeout(
+        &mut comp_cmd,
+        Duration::from_secs(COMPILE_TIMEOUT_SECS),
+        None,
+    ) {
         Ok(o) => o,
         Err(e) => {
             update_progress_at_path(progress_path, lab_id, "compile_error", 0, 0);
@@ -777,7 +894,11 @@ fn judge_lab_internal(
     let mut run_cmd = Command::new(&exe_path);
     prepend_bin_dir_to_path(&mut run_cmd, gpp.bin_dir.as_deref());
 
-    let run_out = match run_command_with_timeout(&mut run_cmd, Duration::from_secs(RUN_TIMEOUT_SECS)) {
+    let run_out = match run_command_with_timeout(
+        &mut run_cmd,
+        Duration::from_secs(RUN_TIMEOUT_SECS),
+        None,
+    ) {
         Ok(o) => o,
         Err(e) => {
             update_progress_at_path(progress_path, lab_id, "in_progress", 0, 0);
@@ -857,7 +978,258 @@ fn judge_lab_internal(
     }
 }
 
-fn run_demo_internal(code: &str) -> DemoResult {
+fn judge_oj_internal(
+    progress_path: Option<&Path>,
+    problem_id: &str,
+    code: &str,
+    test_cases: &[OjTestCase],
+) -> OjJudgeResult {
+    let total = test_cases.len();
+    let gpp = detect_gpp_info();
+    if !gpp.found {
+        return OjJudgeResult {
+            ok: false,
+            compile_ok: false,
+            verdict: "CE".to_string(),
+            compile_error: "未找到 g++ 编译器！请先安装 Dev-C++ 或 MSYS2/MinGW 并将 g++ 加入系统 PATH。".to_string(),
+            warnings: String::new(),
+            passed: 0,
+            total,
+            cases: Vec::new(),
+        };
+    }
+
+    let tmp_guard = match TempDirGuard::new("ds_oj") {
+        Ok(g) => g,
+        Err(e) => {
+            return OjJudgeResult {
+                ok: false,
+                compile_ok: false,
+                verdict: "CE".to_string(),
+                compile_error: format!("创建临时编译目录失败: {e}"),
+                warnings: String::new(),
+                passed: 0,
+                total,
+                cases: Vec::new(),
+            };
+        }
+    };
+
+    let src_path = tmp_guard.path().join("main.cpp");
+    let exe_name = if cfg!(windows) { "main.exe" } else { "main" };
+    let exe_path = tmp_guard.path().join(exe_name);
+
+    if let Err(e) = fs::write(&src_path, code.as_bytes()) {
+        return OjJudgeResult {
+            ok: false,
+            compile_ok: false,
+            verdict: "CE".to_string(),
+            compile_error: format!("写入临时源码失败: {e}"),
+            warnings: String::new(),
+            passed: 0,
+            total,
+            cases: Vec::new(),
+        };
+    }
+
+    let mut comp_cmd = Command::new(&gpp.command);
+    comp_cmd
+        .arg("-std=c++11")
+        .arg("-O2")
+        .arg("-Wall")
+        .arg("-Wextra")
+        .arg(&src_path)
+        .arg("-o")
+        .arg(&exe_path);
+    prepend_bin_dir_to_path(&mut comp_cmd, gpp.bin_dir.as_deref());
+
+    let comp_out = match run_command_with_timeout(
+        &mut comp_cmd,
+        Duration::from_secs(COMPILE_TIMEOUT_SECS),
+        None,
+    ) {
+        Ok(o) => o,
+        Err(e) => {
+            return OjJudgeResult {
+                ok: false,
+                compile_ok: false,
+                verdict: "CE".to_string(),
+                compile_error: format!("调用 g++ 编译失败: {e}"),
+                warnings: String::new(),
+                passed: 0,
+                total,
+                cases: Vec::new(),
+            };
+        }
+    };
+
+    if comp_out.timed_out {
+        return OjJudgeResult {
+            ok: false,
+            compile_ok: false,
+            verdict: "CE".to_string(),
+            compile_error: format!("编译超时（>{COMPILE_TIMEOUT_SECS}s）。"),
+            warnings: String::new(),
+            passed: 0,
+            total,
+            cases: Vec::new(),
+        };
+    }
+
+    let comp_err_clean = clean_compiler_paths(&comp_out.stderr, &src_path, "main.cpp");
+    if comp_out.exit_code != 0 {
+        return OjJudgeResult {
+            ok: false,
+            compile_ok: false,
+            verdict: "CE".to_string(),
+            compile_error: if comp_err_clean.is_empty() {
+                "编译失败（未知错误）".to_string()
+            } else {
+                comp_err_clean
+            },
+            warnings: String::new(),
+            passed: 0,
+            total,
+            cases: Vec::new(),
+        };
+    }
+
+    let warnings = comp_err_clean;
+    let mut results = Vec::with_capacity(total);
+    let mut passed = 0usize;
+    let mut first_fail_verdict: Option<String> = None;
+
+    for (idx, tc) in test_cases.iter().enumerate() {
+        let label = if tc.label.trim().is_empty() {
+            format!("测试点 #{}", idx + 1)
+        } else {
+            tc.label.clone()
+        };
+
+        let mut run_cmd = Command::new(&exe_path);
+        prepend_bin_dir_to_path(&mut run_cmd, gpp.bin_dir.as_deref());
+
+        let run_res = run_command_with_timeout(
+            &mut run_cmd,
+            Duration::from_secs(OJ_CASE_TIMEOUT_SECS),
+            Some(&tc.input),
+        );
+
+        let case_result = match run_res {
+            Err(e) => {
+                if first_fail_verdict.is_none() {
+                    first_fail_verdict = Some("RE".to_string());
+                }
+                OjCaseResult {
+                    index: idx + 1,
+                    label,
+                    status: "RE".to_string(),
+                    input: tc.input.clone(),
+                    expected: tc.expected.clone(),
+                    actual: String::new(),
+                    time_ms: 0,
+                    error: format!("启动程序失败: {e}"),
+                }
+            }
+            Ok(out) => {
+                if out.timed_out {
+                    if first_fail_verdict.is_none() {
+                        first_fail_verdict = Some("TLE".to_string());
+                    }
+                    OjCaseResult {
+                        index: idx + 1,
+                        label,
+                        status: "TLE".to_string(),
+                        input: tc.input.clone(),
+                        expected: tc.expected.clone(),
+                        actual: out.stdout,
+                        time_ms: out.elapsed_ms,
+                        error: format!("运行超时（>{OJ_CASE_TIMEOUT_SECS}.0s），请检查是否存在死循环或时间复杂度过高"),
+                    }
+                } else if out.exit_code != 0 {
+                    if first_fail_verdict.is_none() {
+                        first_fail_verdict = Some("RE".to_string());
+                    }
+                    let err_msg = if out.stderr.trim().is_empty() {
+                        format!("运行时错误（退出码 {}）", out.exit_code)
+                    } else {
+                        format!("退出码 {}：{}", out.exit_code, out.stderr.trim())
+                    };
+                    OjCaseResult {
+                        index: idx + 1,
+                        label,
+                        status: "RE".to_string(),
+                        input: tc.input.clone(),
+                        expected: tc.expected.clone(),
+                        actual: out.stdout,
+                        time_ms: out.elapsed_ms,
+                        error: err_msg,
+                    }
+                } else {
+                    let norm_actual = normalize_oj_output(&out.stdout);
+                    let norm_expected = normalize_oj_output(&tc.expected);
+                    if norm_actual == norm_expected {
+                        passed += 1;
+                        OjCaseResult {
+                            index: idx + 1,
+                            label,
+                            status: "AC".to_string(),
+                            input: tc.input.clone(),
+                            expected: tc.expected.clone(),
+                            actual: out.stdout.trim_end().to_string(),
+                            time_ms: out.elapsed_ms,
+                            error: String::new(),
+                        }
+                    } else {
+                        if first_fail_verdict.is_none() {
+                            first_fail_verdict = Some("WA".to_string());
+                        }
+                        OjCaseResult {
+                            index: idx + 1,
+                            label,
+                            status: "WA".to_string(),
+                            input: tc.input.clone(),
+                            expected: tc.expected.clone(),
+                            actual: out.stdout.trim_end().to_string(),
+                            time_ms: out.elapsed_ms,
+                            error: if out.stderr.trim().is_empty() {
+                                String::new()
+                            } else {
+                                out.stderr.trim().to_string()
+                            },
+                        }
+                    }
+                }
+            }
+        };
+
+        results.push(case_result);
+    }
+
+    let all_ac = total > 0 && passed == total;
+    let verdict = if all_ac {
+        "AC".to_string()
+    } else {
+        first_fail_verdict.unwrap_or_else(|| "WA".to_string())
+    };
+
+    if all_ac {
+        record_oj_passed_at_path(progress_path, problem_id);
+    }
+
+    OjJudgeResult {
+        ok: all_ac,
+        compile_ok: true,
+        verdict,
+        compile_error: String::new(),
+        warnings,
+        passed,
+        total,
+        cases: results,
+    }
+}
+
+fn run_demo_internal(code: &str, stdin_data: Option<&str>) -> DemoResult {
     let gpp = detect_gpp_info();
     if !gpp.found {
         return DemoResult {
@@ -907,7 +1279,11 @@ fn run_demo_internal(code: &str) -> DemoResult {
         .arg(&exe_path);
     prepend_bin_dir_to_path(&mut comp_cmd, gpp.bin_dir.as_deref());
 
-    let comp_out = match run_command_with_timeout(&mut comp_cmd, Duration::from_secs(COMPILE_TIMEOUT_SECS)) {
+    let comp_out = match run_command_with_timeout(
+        &mut comp_cmd,
+        Duration::from_secs(COMPILE_TIMEOUT_SECS),
+        None,
+    ) {
         Ok(o) => o,
         Err(e) => {
             return DemoResult {
@@ -951,7 +1327,11 @@ fn run_demo_internal(code: &str) -> DemoResult {
     let mut run_cmd = Command::new(&exe_path);
     prepend_bin_dir_to_path(&mut run_cmd, gpp.bin_dir.as_deref());
 
-    let run_out = match run_command_with_timeout(&mut run_cmd, Duration::from_secs(RUN_TIMEOUT_SECS)) {
+    let run_out = match run_command_with_timeout(
+        &mut run_cmd,
+        Duration::from_secs(RUN_TIMEOUT_SECS),
+        stdin_data,
+    ) {
         Ok(o) => o,
         Err(e) => {
             return DemoResult {
@@ -1029,8 +1409,23 @@ async fn judge_lab(
 }
 
 #[tauri::command]
-async fn run_demo(code: String) -> Result<DemoResult, String> {
-    tauri::async_runtime::spawn_blocking(move || run_demo_internal(&code))
+async fn judge_oj(
+    app: tauri::AppHandle,
+    problem_id: String,
+    code: String,
+    test_cases: Vec<OjTestCase>,
+) -> Result<OjJudgeResult, String> {
+    let progress_path = resolve_progress_path(Some(&app));
+    tauri::async_runtime::spawn_blocking(move || {
+        judge_oj_internal(progress_path.as_deref(), &problem_id, &code, &test_cases)
+    })
+    .await
+    .map_err(|e| format!("OJ 评测任务执行失败: {e}"))
+}
+
+#[tauri::command]
+async fn run_demo(code: String, stdin: Option<String>) -> Result<DemoResult, String> {
+    tauri::async_runtime::spawn_blocking(move || run_demo_internal(&code, stdin.as_deref()))
         .await
         .map_err(|e| format!("运行示例任务执行失败: {e}"))
 }
@@ -1042,6 +1437,7 @@ pub fn run() {
             check_health,
             get_progress,
             judge_lab,
+            judge_oj,
             run_demo
         ])
         .run(tauri::generate_context!())
@@ -1133,10 +1529,105 @@ int main() {
     return 0;
 }
 "#;
-        let res = run_demo_internal(demo_code);
+        let res = run_demo_internal(demo_code, None);
         assert!(res.compile_ok, "演示代码编译失败: {}", res.compile_error);
         assert!(!res.timed_out);
         assert_eq!(res.exit_code, 0);
         assert_eq!(res.stdout.trim(), "Hello Tauri DSA!");
+    }
+
+    #[test]
+    fn test_real_gpp_judge_oj_ac_and_wa() {
+        let gpp = detect_gpp_info();
+        assert!(gpp.found, "测试环境应当检测到 g++ 编译器");
+
+        let tmp_prog_dir = TempDirGuard::new("ds_oj_prog_test").expect("创建临时进度目录");
+        let prog_file = tmp_prog_dir.path().join("progress.json");
+
+        let ac_code = r#"
+#include <iostream>
+using namespace std;
+int main() {
+    int a, b;
+    if (cin >> a >> b) {
+        cout << (a + b) << "  \n";
+    }
+    return 0;
+}
+"#;
+        let cases = vec![
+            OjTestCase {
+                label: "样例 1".into(),
+                input: "3 5\n".into(),
+                expected: "8".into(),
+            },
+            OjTestCase {
+                label: "负数边界".into(),
+                input: "-10 25\n".into(),
+                expected: "15\n".into(),
+            },
+        ];
+
+        let ac_res = judge_oj_internal(Some(&prog_file), "oj01", ac_code, &cases);
+        assert!(ac_res.compile_ok, "编译失败: {}", ac_res.compile_error);
+        assert!(ac_res.ok, "应为 AC，实际: {:?}", ac_res);
+        assert_eq!(ac_res.verdict, "AC");
+        assert_eq!(ac_res.passed, 2);
+        assert_eq!(ac_res.total, 2);
+        assert_eq!(ac_res.cases[0].status, "AC");
+        assert_eq!(ac_res.cases[1].status, "AC");
+
+        // 验证 _ojPassed 持久化写入
+        let loaded = load_progress_from_path(Some(&prog_file));
+        let oj_arr = loaded
+            .get("_ojPassed")
+            .and_then(|v| v.as_array())
+            .expect("应包含 _ojPassed 数组");
+        assert!(oj_arr.iter().any(|v| v.as_str() == Some("oj01")));
+
+        // 测试 WA 场景
+        let wa_code = r#"
+#include <iostream>
+using namespace std;
+int main() {
+    int a, b;
+    if (cin >> a >> b) {
+        cout << (a - b) << "\n";
+    }
+    return 0;
+}
+"#;
+        let wa_res = judge_oj_internal(Some(&prog_file), "oj02", wa_code, &cases);
+        assert!(wa_res.compile_ok);
+        assert!(!wa_res.ok);
+        assert_eq!(wa_res.verdict, "WA");
+        assert_eq!(wa_res.passed, 0);
+        assert_eq!(wa_res.total, 2);
+        assert_eq!(wa_res.cases[0].status, "WA");
+        assert_eq!(wa_res.cases[0].actual, "-2");
+    }
+
+    #[test]
+    fn test_real_gpp_run_demo_with_stdin() {
+        let gpp = detect_gpp_info();
+        assert!(gpp.found, "测试环境应当检测到 g++ 编译器");
+
+        let code = r#"
+#include <iostream>
+#include <string>
+using namespace std;
+int main() {
+    int n;
+    string name;
+    cin >> n >> name;
+    cout << name << ":" << (n * 2) << "\n";
+    return 0;
+}
+"#;
+        let res = run_demo_internal(code, Some("21 TauriOJ\n"));
+        assert!(res.compile_ok, "编译失败: {}", res.compile_error);
+        assert!(!res.timed_out);
+        assert_eq!(res.exit_code, 0);
+        assert_eq!(res.stdout.trim(), "TauriOJ:42");
     }
 }

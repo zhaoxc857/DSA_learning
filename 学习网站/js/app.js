@@ -347,6 +347,7 @@
     var nextXP = lv.nextXP || lv.nextLevelXP || lv.nextMinXP || 150;
     var streak = st.streak || st.streakDays || 1;
     var passedLabs = Array.isArray(st.passedLabs) ? st.passedLabs.length : Object.keys(st.passedLabs || {}).length;
+    var passedOJ = Array.isArray(st.passedOJ) ? st.passedOJ.length : Object.keys(st.passedOJ || {}).length;
     var answeredCount = Array.isArray(st.answeredIds) ? st.answeredIds.length : Object.keys(st.answeredIds || {}).length;
     var solvedBugs = Array.isArray(st.solvedBugs) ? st.solvedBugs.length : Object.keys(st.solvedBugs || {}).length;
     var masteredCards = Array.isArray(st.masteredCards) ? st.masteredCards.length : Object.keys(st.masteredCards || {}).length;
@@ -359,6 +360,7 @@
       nextXP: nextXP,
       streak: streak,
       passedLabs: passedLabs,
+      passedOJ: passedOJ,
       answeredCount: answeredCount,
       solvedBugs: solvedBugs,
       masteredCards: masteredCards,
@@ -414,10 +416,14 @@
     var unlockedCount = achievements.filter(function (a) { return a.unlocked; }).length;
 
     // 章节星图卡片 HTML
+    var ojAll = global.DS_OJ_PROBLEMS || [];
+    var passedOJList = (info.state && Array.isArray(info.state.passedOJ)) ? info.state.passedOJ : [];
+
     var starCardsHtml = starChapters.map(function (c) {
       var pct = getChapterPct(c.id);
       var vizList = c.vizTabs || [];
       var labList = c.labIds || [];
+      var chapOJs = ojAll.filter(function (p) { return p.chapterId === c.id; });
       var passedHere = 0;
       if (labList.length && info.state && info.state.passedLabs) {
         var pl = info.state.passedLabs;
@@ -425,6 +431,7 @@
           if (Array.isArray(pl) ? pl.indexOf(lid) !== -1 : !!pl[lid]) passedHere++;
         });
       }
+      var ojPassedHere = chapOJs.filter(function (p) { return passedOJList.indexOf(p.id) !== -1; }).length;
       var numText = c.group === 'appendix' ? (c.id === 'appA' ? '附录 A' : '附录 B') : ('第 ' + c.id + ' 章');
       return (
         '<div class="chapter-card' + (c.group === 'appendix' ? ' appendix' : '') + (pct >= 100 ? ' done' : '') + '">' +
@@ -438,8 +445,9 @@
           '<p class="chapter-card-summary">' + escapeHtml(c.summary || '系统掌握本章核心原理、内存模型与高频面试考点。') + '</p>' +
           '<div class="chapter-meta-row">' +
             (c.estDays ? '<span class="badge">⏱ ' + escapeHtml(c.estDays) + '</span>' : '') +
-            (labList.length ? '<span class="badge ' + (passedHere === labList.length ? 'badge-green' : 'badge-blue') + '">💻 实验 ' + passedHere + '/' + labList.length + '</span>' : '') +
-            (vizList.length ? '<span class="badge badge-purple">🎬 ' + vizList.length + ' 个动画</span>' : '') +
+            (labList.length ? '<span class="badge ' + (passedHere === labList.length ? 'badge-green' : 'badge-blue') + '">🧩 挖空 ' + passedHere + '/' + labList.length + '</span>' : '') +
+            (chapOJs.length ? '<span class="badge ' + (ojPassedHere === chapOJs.length ? 'badge-green' : 'badge-amber') + '">🔥 手搓 ' + ojPassedHere + '/' + chapOJs.length + '</span>' : '') +
+            (vizList.length ? '<span class="badge badge-purple">🎬 ' + vizList.length + ' 动画</span>' : '') +
           '</div>' +
           '<div class="chapter-progress-row">' +
             '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
@@ -448,8 +456,9 @@
           '<div class="chapter-actions">' +
             '<button type="button" class="chapter-act-btn primary" data-go-reader="' + escapeHtml(c.id) + '">📖 学笔记</button>' +
             (vizList.length ? '<button type="button" class="chapter-act-btn" data-go-viz="' + escapeHtml(vizList[0]) + '">🎬 看动画</button>' : '') +
-            (labList.length ? '<button type="button" class="chapter-act-btn" data-go-lab="' + escapeHtml(labList[0]) + '">💻 闯代码关</button>' : '') +
-            '<button type="button" class="chapter-act-btn" data-go-quiz="' + escapeHtml(c.id) + '">🎮 做测验</button>' +
+            (labList.length ? '<button type="button" class="chapter-act-btn" data-go-lab="' + escapeHtml(labList[0]) + '">🧩 挖空关</button>' : '') +
+            (chapOJs.length ? '<button type="button" class="chapter-act-btn" data-go-oj="' + escapeHtml(chapOJs[0].id) + '">🔥 全手搓</button>' : '') +
+            '<button type="button" class="chapter-act-btn" data-go-quiz="' + escapeHtml(c.id) + '">🎮 测验</button>' +
           '</div>' +
         '</div>'
       );
@@ -471,16 +480,17 @@
 
     var stats = manifest.stats || {};
     var totalLabs = stats.totalLabs || (global.DS_LABS ? global.DS_LABS.length : 15);
-    var totalQ = (global.DS_QUIZZES && global.DS_QUIZZES.questions) ? global.DS_QUIZZES.questions.length : 96;
+    var totalOJ = stats.totalOJ || (ojAll.length || 16);
+    var totalQ = (global.DS_QUIZZES && global.DS_QUIZZES.questions) ? global.DS_QUIZZES.questions.length : 108;
     var totalBugs = (global.DS_QUIZZES && global.DS_QUIZZES.bugCases) ? global.DS_QUIZZES.bugCases.length : 24;
 
     mainEl.innerHTML =
       '<section class="dash-hero">' +
         '<div class="dash-hero-grid">' +
           '<div>' +
-            '<div class="hero-eyebrow">🔥 今日学习连胜 ' + info.streak + ' 天 · 零基础直通手写算法</div>' +
+            '<div class="hero-eyebrow">🔥 今日学习连胜 ' + info.streak + ' 天 · 零基础直通全手搓算法</div>' +
             '<h1 class="hero-title">' + escapeHtml(manifest.bookTitle || '《数据结构与算法》全书交互式自学学院') + '</h1>' +
-            '<p class="hero-subtitle">' + escapeHtml(manifest.subtitle || '配套徐雅静《数据结构与算法》：17 份精讲笔记 · 8 大交互动画 · 15 关真 g++ 编译评测 · 96+ 题库与找 Bug 诊所，100% 离线/在线双模畅学！') + '</p>' +
+            '<p class="hero-subtitle">' + escapeHtml(manifest.subtitle || '配套徐雅静《数据结构与算法》：17 份精讲笔记 · 8 大交互动画 · 15 关骨架挖空 + 16 题全手搓 OJ 真编译评测 · 108 题库与找 Bug 诊所！') + '</p>' +
             '<div class="hero-xp-box">' +
               '<div class="hero-xp-top">' +
                 '<span>🏅 当前段位：Lv.' + info.levelNum + ' ' + escapeHtml(info.title) + '</span>' +
@@ -489,24 +499,25 @@
               '<div class="hero-xp-track"><div class="hero-xp-fill" style="width:' + info.pct + '%"></div></div>' +
             '</div>' +
             '<div class="hero-actions">' +
-              '<button type="button" class="hero-btn-main" id="btn-hero-continue">🚀 继续上次学习：' + escapeHtml(lastChapLabel) + '</button>' +
-              '<button type="button" class="hero-btn-ghost" id="btn-hero-viz">🎬 逛 8 大动画实验室</button>' +
-              '<button type="button" class="hero-btn-ghost" id="btn-hero-lab">💻 闯 15 关 C++ 评测</button>' +
+              '<button type="button" class="hero-btn-main" id="btn-hero-continue">🚀 继续学习：' + escapeHtml(lastChapLabel) + '</button>' +
+              '<button type="button" class="hero-btn-accent" id="btn-hero-oj">🔥 全手搓 OJ 挑战 (' + totalOJ + '题)</button>' +
+              '<button type="button" class="hero-btn-ghost" id="btn-hero-viz">🎬 8 大动画实验室</button>' +
               '<button type="button" class="hero-btn-ghost" id="btn-hero-bug">🩺 找 Bug 大侦探</button>' +
             '</div>' +
           '</div>' +
           '<div class="hero-stats-grid">' +
-            '<div class="hero-stat"><div class="hero-stat-val">' + overallPct + '%</div><div class="hero-stat-lbl">📖 全书章节掌握度</div></div>' +
-            '<div class="hero-stat"><div class="hero-stat-val">' + info.passedLabs + ' / ' + totalLabs + '</div><div class="hero-stat-lbl">💻 代码评测已通关</div></div>' +
-            '<div class="hero-stat"><div class="hero-stat-val">' + info.answeredCount + ' / ' + totalQ + '</div><div class="hero-stat-lbl">🎯 交互刷题已完成</div></div>' +
-            '<div class="hero-stat"><div class="hero-stat-val">' + info.solvedBugs + ' / ' + totalBugs + '</div><div class="hero-stat-lbl">🩺 Bug 病例已治愈</div></div>' +
+            '<div class="hero-stat span-3"><div class="hero-stat-val">' + overallPct + '%</div><div class="hero-stat-lbl">📖 全书章节掌握度</div></div>' +
+            '<div class="hero-stat span-3 highlight"><div class="hero-stat-val">' + info.passedOJ + ' / ' + totalOJ + '</div><div class="hero-stat-lbl">🔥 全手搓 OJ 已 AC</div></div>' +
+            '<div class="hero-stat"><div class="hero-stat-val">' + info.passedLabs + ' / ' + totalLabs + '</div><div class="hero-stat-lbl">🧩 挖空实验通关</div></div>' +
+            '<div class="hero-stat"><div class="hero-stat-val">' + info.answeredCount + ' / ' + totalQ + '</div><div class="hero-stat-lbl">🎯 交互刷题完成</div></div>' +
+            '<div class="hero-stat"><div class="hero-stat-val">' + info.solvedBugs + ' / ' + totalBugs + '</div><div class="hero-stat-lbl">🩺 Bug 病例治愈</div></div>' +
           '</div>' +
         '</div>' +
       '</section>' +
 
       '<div class="section-header">' +
         '<h2 class="section-title">🗺️ 全书 8 章 + 2 附录闯关星图</h2>' +
-        '<span class="section-sub">共 ' + (stats.totalLines || 27000) + '+ 行精讲笔记 · 477 项真实 C++ 断言 · 点击任意卡片直达学习</span>' +
+        '<span class="section-sub">共 ' + (stats.totalLines || 27000) + '+ 行精讲笔记 · 15 关骨架挖空 + ' + totalOJ + ' 题全手搓 OJ · 点击任意卡片直达学习</span>' +
       '</div>' +
       '<div class="starmap-grid">' + starCardsHtml + '</div>' +
 
@@ -518,7 +529,7 @@
 
       '<div class="section-header">' +
         '<h2 class="section-title">🏆 成就徽章墙 <span class="badge badge-amber">' + unlockedCount + ' / ' + achievements.length + '</span></h2>' +
-        '<span class="section-sub">持续阅读、跑通动画、AC 代码关、治愈 Bug 即可点亮全部 12 枚徽章</span>' +
+        '<span class="section-sub">持续阅读、跑通动画、AC 挖空与全手搓 OJ、治愈 Bug 即可点亮全部 ' + (achievements.length || 14) + ' 枚徽章</span>' +
       '</div>' +
       '<div class="achievements-grid">' + achGridHtml + '</div>' +
 
@@ -546,10 +557,10 @@
     // 绑定 Hero 快捷按钮
     var btnCont = document.getElementById('btn-hero-continue');
     if (btnCont) btnCont.addEventListener('click', function () { navigate('reader', { chapterId: lastChapId }); });
+    var btnHeroOJ = document.getElementById('btn-hero-oj');
+    if (btnHeroOJ) btnHeroOJ.addEventListener('click', function () { navigate('lab', { mode: 'oj', ojId: localStorage.getItem('ds_last_oj') || 'oj01' }); });
     var btnViz = document.getElementById('btn-hero-viz');
     if (btnViz) btnViz.addEventListener('click', function () { navigate('viz', { tab: 'linkedlist' }); });
-    var btnLab = document.getElementById('btn-hero-lab');
-    if (btnLab) btnLab.addEventListener('click', function () { navigate('lab', { mode: 'labs', labId: localStorage.getItem('ds_last_lab') || '00' }); });
     var btnBug = document.getElementById('btn-hero-bug');
     if (btnBug) btnBug.addEventListener('click', function () { navigate('quiz', { mode: 'bug' }); });
 
@@ -562,6 +573,9 @@
     });
     mainEl.querySelectorAll('[data-go-lab]').forEach(function (b) {
       b.addEventListener('click', function () { navigate('lab', { mode: 'labs', labId: b.getAttribute('data-go-lab') }); });
+    });
+    mainEl.querySelectorAll('[data-go-oj]').forEach(function (b) {
+      b.addEventListener('click', function () { navigate('lab', { mode: 'oj', ojId: b.getAttribute('data-go-oj') }); });
     });
     mainEl.querySelectorAll('[data-go-quiz]').forEach(function (b) {
       b.addEventListener('click', function () { navigate('quiz', { mode: 'quiz', chapterId: b.getAttribute('data-go-quiz') }); });
@@ -749,6 +763,7 @@
     if (route === 'viz') return '#viz/' + encodeURIComponent(params.tab || 'linkedlist');
     if (route === 'lab') {
       if (params.mode === 'demos') return '#lab/demos' + (params.demoFilename ? '/' + encodeURIComponent(params.demoFilename) : '');
+      if (params.mode === 'oj') return '#lab/oj' + (params.ojId ? '/' + encodeURIComponent(params.ojId) : '');
       return '#lab/' + encodeURIComponent(params.labId || localStorage.getItem('ds_last_lab') || '00');
     }
     if (route === 'quiz') {
@@ -771,6 +786,7 @@
     if (r === 'viz') return { route: 'viz', params: { tab: parts[1] || 'linkedlist' } };
     if (r === 'lab') {
       if (parts[1] === 'demos') return { route: 'lab', params: { mode: 'demos', demoFilename: parts[2] || '' } };
+      if (parts[1] === 'oj') return { route: 'lab', params: { mode: 'oj', ojId: parts[2] || '' } };
       return { route: 'lab', params: { mode: 'labs', labId: parts[1] || '00' } };
     }
     if (r === 'quiz') return { route: 'quiz', params: { mode: parts[1] || 'quiz', chapterId: parts[2] || '' } };
@@ -886,16 +902,27 @@
       });
     });
 
-    // 2. 15 关实验
+    // 2. 15 关实验 + 16 题全手搓 OJ
     (global.DS_LABS || []).forEach(function (l) {
       var hintText = (l.hints || []).map(function (h) { return (h.sig || '') + ' ' + (h.lines || []).join(' '); }).join(' ');
       items.push({
         type: 'lab',
-        badge: '💻 Lab ' + l.id,
+        badge: '🧩 Lab ' + l.id,
         title: 'Lab ' + l.id + ' · ' + l.title,
         subtitle: l.desc || '',
         body: (l.desc || '') + ' ' + hintText,
         labId: l.id
+      });
+    });
+    (global.DS_OJ_PROBLEMS || []).forEach(function (p) {
+      items.push({
+        type: 'lab',
+        isOJ: true,
+        badge: '🔥 全手搓 #' + p.num,
+        title: '#' + String(p.num).padStart(2, '0') + ' · ' + p.title,
+        subtitle: p.summary || '',
+        body: (p.summary || '') + ' ' + (p.tags || []).join(' ') + ' ' + (p.description || '').slice(0, 600),
+        ojId: p.id
       });
     });
 
@@ -1037,7 +1064,11 @@
     if (it.type === 'chapter') {
       navigate('reader', { chapterId: it.chapterId, anchor: it.anchor, searchQuery: it.anchor ? '' : query });
     } else if (it.type === 'lab') {
-      navigate('lab', { mode: 'labs', labId: it.labId });
+      if (it.isOJ) {
+        navigate('lab', { mode: 'oj', ojId: it.ojId });
+      } else {
+        navigate('lab', { mode: 'labs', labId: it.labId });
+      }
     } else if (it.type === 'demo') {
       navigate('lab', { mode: 'demos', demoFilename: it.demoFilename });
     } else if (it.type === 'card') {

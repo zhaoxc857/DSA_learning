@@ -1,4 +1,4 @@
-// 《数据结构与算法》游戏化学习引擎：XP / 8级段位 / 12成就 / 连胜 / 错题本 / 笔记 / 书签 / Toast & Canvas彩纸
+// 《数据结构与算法》游戏化学习引擎：XP / 8级段位 / 14成就 / 连胜 / 错题本 / 全手搓OJ / 笔记 / 书签 / Toast & Canvas彩纸
 // 暴露全局对象 window.DSGamify，使用 localStorage key "ds_academy_v1" 持久化
 (function (global) {
   "use strict";
@@ -67,6 +67,20 @@
       check: function (s) { return s.passedLabs.length >= 15; }
     },
     {
+      id: "oj_1",
+      icon: "🔥",
+      name: "首次全手搓 AC",
+      desc: "在全手搓 OJ 实战中成功 AC 第 1 道编程题",
+      check: function (s) { return s.passedOJ.length >= 1; }
+    },
+    {
+      id: "oj_8",
+      icon: "⌨️",
+      name: "从零手搓大师",
+      desc: "在全手搓 OJ 实战中累计 AC 至少 8 道编程题",
+      check: function (s) { return s.passedOJ.length >= 8; }
+    },
+    {
       id: "quiz_15",
       icon: "🎯",
       name: "刷题新星",
@@ -126,6 +140,7 @@
       lastActiveDate: getTodayStr(),
       doneSections: [],     // ["00::slug", ...]
       passedLabs: [],       // ["00", "01", ...]
+      passedOJ: [],         // ["oj01", "oj02", ...]
       visitedViz: [],       // ["linkedlist", "kmp", ...]
       wrongIds: [],         // ["q-01-03", ...]
       answeredIds: [],      // ["q-01-01", ...]
@@ -163,6 +178,7 @@
     base.lastActiveDate = typeof raw.lastActiveDate === "string" ? raw.lastActiveDate : getTodayStr();
     base.doneSections = uniqArray(raw.doneSections);
     base.passedLabs = uniqArray(raw.passedLabs).map(String);
+    base.passedOJ = uniqArray(raw.passedOJ).map(String);
     base.visitedViz = uniqArray(raw.visitedViz).map(String);
     base.wrongIds = uniqArray(raw.wrongIds).map(String);
     base.answeredIds = uniqArray(raw.answeredIds).map(String);
@@ -248,14 +264,14 @@
     var style = document.createElement("style");
     style.id = "ds-gamify-styles";
     style.textContent = [
-      ".ds-toast-stack{position:fixed;right:20px;bottom:22px;z-index:99999;display:flex;flex-direction:column;gap:10px;max-width:360px;pointer-events:none;}",
-      ".ds-toast{pointer-events:auto;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.45;font-weight:500;box-shadow:0 10px 28px rgba(15,23,42,.18);background:var(--bg-card,#ffffff);color:var(--text-main,#1e293b);border:1px solid var(--border,#e2e8f0);border-left:4px solid var(--accent,#2563eb);opacity:0;transform:translateY(14px) scale(.96);transition:opacity .24s ease,transform .24s ease;}",
+      ".ds-toast-stack{position:fixed;top:68px;right:16px;z-index:99999;display:flex;flex-direction:column;gap:8px;max-width:320px;pointer-events:none;}",
+      ".ds-toast{pointer-events:none;display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;font-size:13px;line-height:1.4;font-weight:500;box-shadow:0 8px 22px rgba(15,23,42,.14);background:var(--bg-card,#ffffff);color:var(--text-main,#1e293b);border:1px solid var(--border,#e2e8f0);border-left:3.5px solid var(--accent,#2563eb);opacity:0;transform:translateY(-10px) scale(.96);transition:opacity .22s ease,transform .22s ease;backdrop-filter:blur(8px);}",
       ".ds-toast.show{opacity:1;transform:translateY(0) scale(1);}",
       ".ds-toast.ds-toast-success{border-left-color:#10b981;}",
       ".ds-toast.ds-toast-warn{border-left-color:#f59e0b;}",
       ".ds-toast.ds-toast-error{border-left-color:#ef4444;}",
       ".ds-toast.ds-toast-achievement{border-left-color:#8b5cf6;background:linear-gradient(135deg,var(--bg-card,#ffffff),rgba(139,92,246,.08));}",
-      ".ds-toast-icon{font-size:18px;flex-shrink:0;}",
+      ".ds-toast-icon{font-size:16px;flex-shrink:0;}",
       ".ds-confetti-canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:99998;}"
     ].join("");
     (document.head || document.documentElement).appendChild(style);
@@ -265,7 +281,7 @@
     if (typeof document === "undefined") return;
     ensureStyles();
     var kind = type || "info";
-    var ms = typeof duration === "number" ? duration : 3200;
+    var ms = typeof duration === "number" ? Math.min(duration, 3400) : 2800;
     var stack = document.getElementById("ds-toast-stack");
     if (!stack) {
       stack = document.createElement("div");
@@ -291,8 +307,8 @@
     item.appendChild(textSpan);
     stack.appendChild(item);
 
-    // 最多保留 4 条，防止刷屏
-    while (stack.children.length > 4) {
+    // 顶栏下方右上角紧凑提示：最多保留 2 条，超出立即移除，绝不遮挡编辑区
+    while (stack.children.length > 2) {
       stack.removeChild(stack.firstChild);
     }
 
@@ -454,6 +470,7 @@
       lastActiveDate: state.lastActiveDate,
       doneSections: state.doneSections.slice(),
       passedLabs: state.passedLabs.slice(),
+      passedOJ: state.passedOJ.slice(),
       visitedViz: state.visitedViz.slice(),
       wrongIds: state.wrongIds.slice(),
       answeredIds: state.answeredIds.slice(),
@@ -565,8 +582,18 @@
       }
     }
 
-    var totalUnits = sectionsTotal + quizTotal + bugsTotal + labsTotal;
-    var doneUnits = Math.min(sectionsDone, sectionsTotal || sectionsDone) + quizCorrect + bugsSolved + labsPassed;
+    var ojTotal = 0, ojPassed = 0;
+    if (Array.isArray(global.DS_OJ_PROBLEMS)) {
+      for (var o = 0; o < global.DS_OJ_PROBLEMS.length; o++) {
+        if (global.DS_OJ_PROBLEMS[o].chapterId === cid) {
+          ojTotal++;
+          if (state.passedOJ.indexOf(String(global.DS_OJ_PROBLEMS[o].id)) !== -1) ojPassed++;
+        }
+      }
+    }
+
+    var totalUnits = sectionsTotal + quizTotal + bugsTotal + labsTotal + ojTotal;
+    var doneUnits = Math.min(sectionsDone, sectionsTotal || sectionsDone) + quizCorrect + bugsSolved + labsPassed + ojPassed;
     var percent = totalUnits > 0 ? Math.min(100, Math.round((doneUnits / totalUnits) * 100)) : 0;
 
     return {
@@ -581,7 +608,9 @@
       bugsSolved: bugsSolved,
       bugsTotal: bugsTotal,
       labsPassed: labsPassed,
-      labsTotal: labsTotal
+      labsTotal: labsTotal,
+      ojPassed: ojPassed,
+      ojTotal: ojTotal
     };
   }
 
@@ -695,6 +724,37 @@
       var lid = String(labIds[i]);
       if (state.passedLabs.indexOf(lid) === -1) {
         state.passedLabs.push(lid);
+        changed = true;
+      }
+    }
+    if (changed) {
+      checkAchievements();
+      notify();
+    }
+  }
+
+  function markOJPassed(ojId) {
+    var oid = String(ojId);
+    var newlyPassed = state.passedOJ.indexOf(oid) === -1;
+    var xpGained = 0;
+    if (newlyPassed) {
+      state.passedOJ.push(oid);
+      xpGained = 60;
+      addXP(xpGained, "全手搓 OJ " + oid.toUpperCase() + " 全部 AC！");
+      celebrate("🔥 全手搓 " + oid.toUpperCase() + " ALL AC！", "+60 XP 已入账");
+    } else {
+      notify();
+    }
+    return { ojId: oid, newlyPassed: newlyPassed, xpGained: xpGained };
+  }
+
+  function syncPassedOJ(ojIds) {
+    if (!Array.isArray(ojIds)) return;
+    var changed = false;
+    for (var i = 0; i < ojIds.length; i++) {
+      var oid = String(ojIds[i]);
+      if (state.passedOJ.indexOf(oid) === -1) {
+        state.passedOJ.push(oid);
         changed = true;
       }
     }
@@ -846,6 +906,8 @@
     toggleCardMastered: toggleCardMastered,
     markLabPassed: markLabPassed,
     syncPassedLabs: syncPassedLabs,
+    markOJPassed: markOJPassed,
+    syncPassedOJ: syncPassedOJ,
     markVizVisited: markVizVisited,
     toggleBookmark: toggleBookmark,
     isBookmarked: isBookmarked,

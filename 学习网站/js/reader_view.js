@@ -359,7 +359,10 @@
     (chMeta.labIds || []).forEach(function (lId) {
       var labObj = (global.DS_LABS || []).find(function (l) { return l.id === lId; });
       var lTitle = labObj ? ('Lab ' + lId + ' ' + labObj.title) : ('闯关 Lab ' + lId);
-      linkedBtns.push('<button type="button" class="btn btn-sm" data-jump-lab="' + escapeHtml(lId) + '">💻 ' + escapeHtml(lTitle) + '</button>');
+      linkedBtns.push('<button type="button" class="btn btn-sm" data-jump-lab="' + escapeHtml(lId) + '">🧩 ' + escapeHtml(lTitle) + '</button>');
+    });
+    (global.DS_OJ_PROBLEMS || []).filter(function (p) { return p.chapterId === chapterId; }).forEach(function (p) {
+      linkedBtns.push('<button type="button" class="btn btn-sm btn-soft" data-jump-oj="' + escapeHtml(p.id) + '">🔥 全手搓：' + escapeHtml(p.title) + '</button>');
     });
     if (chMeta.group === 'core' || chMeta.group === 'appendix') {
       linkedBtns.push('<button type="button" class="btn btn-sm" data-jump-quiz="' + escapeHtml(chapterId) + '">🎮 本章专项刷题</button>');
@@ -392,6 +395,7 @@
       : '<pre>' + escapeHtml(chData.markdown) + '</pre>';
 
     containerEl.innerHTML =
+      '<div class="reader-progress-bar" aria-hidden="true"><div class="reader-progress-fill" id="reader-scroll-fill"></div></div>' +
       '<div class="reader-layout' + (focusMode ? ' focus-mode' : '') + '" id="reader-layout">' +
         '<aside class="reader-sidebar-left">' +
           '<div class="card reader-nav-card">' + sidebarTreeHtml + '</div>' +
@@ -509,6 +513,11 @@
         global.DSApp.navigate('lab', { mode: 'labs', labId: b.getAttribute('data-jump-lab') });
       });
     });
+    containerEl.querySelectorAll('[data-jump-oj]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        global.DSApp.navigate('lab', { mode: 'oj', ojId: b.getAttribute('data-jump-oj') });
+      });
+    });
     containerEl.querySelectorAll('[data-jump-quiz]').forEach(function (b) {
       b.addEventListener('click', function () {
         global.DSApp.navigate('quiz', { mode: 'quiz', chapterId: b.getAttribute('data-jump-quiz') });
@@ -537,11 +546,17 @@
       });
     }
 
-    // 右侧 TOC 滚动高亮 (Scroll-spy)
+    // 右侧 TOC 滚动高亮 (Scroll-spy) & 顶部 3px 阅读进度条
     var tocLinks = Array.prototype.slice.call(containerEl.querySelectorAll('#reader-toc-list a'));
     var headingEls = headings.map(function (h) { return document.getElementById(h.slug); }).filter(Boolean);
+    var scrollFillEl = containerEl.querySelector('#reader-scroll-fill');
 
     function onScrollSpy() {
+      if (scrollFillEl) {
+        var docH = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+        var pct = Math.max(0, Math.min(100, (window.scrollY / docH) * 100));
+        scrollFillEl.style.width = pct.toFixed(1) + '%';
+      }
       if (!headingEls.length) return;
       var scrollTop = window.scrollY + 110;
       var activeSlug = headingEls[0].id;

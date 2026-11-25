@@ -545,6 +545,21 @@ def render_chapter_bundle_js(bundle_name: str, items: List[Dict[str, Any]]) -> s
     return "\n".join(parts) + "\n"
 
 
+def count_oj_problems(default_count: int = 16) -> int:
+    """若 data/oj_problems.js 已存在则动态统计全手搓 OJ 题数量，否则返回默认值 16。"""
+    oj_path = os.path.join(DATA_DIR, "oj_problems.js")
+    if not os.path.isfile(oj_path):
+        return default_count
+    try:
+        txt = read_utf8(oj_path)
+        ids = set(re.findall(r'(?:"id"|\bid)\s*:\s*"(oj\d+)"', txt))
+        if ids:
+            return len(ids)
+    except Exception:
+        pass
+    return default_count
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -559,9 +574,11 @@ def main() -> int:
     manifest, bundles = build_chapters_and_manifest()
     labs = build_labs()
     demos = build_demos()
+    total_oj = count_oj_problems(16)
 
     manifest["stats"]["totalLabs"] = len(labs)
     manifest["stats"]["totalDemos"] = len(demos)
+    manifest["stats"]["totalOJ"] = total_oj
     manifest["stats"]["totalTestCases"] = sum(item["testCount"] for item in labs)
 
     outputs: List[Tuple[str, int]] = []
@@ -597,6 +614,7 @@ def main() -> int:
         f"{len(manifest['extraDocs'])} README = {manifest['stats']['totalDocs']} 份 Markdown "
         f"({manifest['stats']['totalLines']} 行) | "
         f"{len(labs)} 关实验 ({manifest['stats']['totalTestCases']} 断言) | "
+        f"{total_oj} 道全手搓 OJ | "
         f"{len(demos)} 份演示代码"
     )
     print("============================================================")
